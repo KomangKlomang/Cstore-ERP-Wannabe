@@ -1,0 +1,764 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────────── ENUMs
+
+enum UserRole {
+  MDM
+  CATEGORY_OFFICER
+  BUYER
+  MARKETING_OFFICER
+  SPV_AREA
+  CREW
+  ADMIN_IT
+}
+
+enum Region {
+  JBTK
+  SRG
+  BDG
+  SMG
+  SBY
+}
+
+enum StatusAktif {
+  AKTIF
+  NONAKTIF
+}
+
+enum StoreType {
+  DTS
+  EX_LWS
+}
+
+enum StoreStatus {
+  AKTIF
+  TUTUP
+  RELOKASI
+  RENOVASI
+}
+
+enum ProductStatus {
+  DRAFT
+  AKTIF
+  NONAKTIF
+  DELISTING
+}
+
+enum UsulanStatus {
+  DRAFT
+  SUBMITTED
+  ON_PROGRESS
+  APPROVED
+  DECLINED
+}
+
+enum SumberUsulan {
+  BUYER
+  CATEGORY
+}
+
+enum JenisKontrak {
+  HEADER
+  LOLIPOP
+  AKRILIK
+  SHOWCASE
+  PROGRAM
+  PROMOSI
+}
+
+enum KontrakStatus {
+  DRAFT
+  AKTIF
+  AKAN_BERAKHIR
+  BERAKHIR
+  DIPERPANJANG
+  DIBATALKAN
+}
+
+enum JenisAset {
+  AKRILIK
+  HEADER
+  LOLIPOP
+  SHOWCASE
+  SIGNAGE
+  DIGITAL
+}
+
+enum KondisiAset {
+  GOOD
+  REPLACE
+  HILANG
+  RETUR
+}
+
+enum JenisDokumen {
+  SURAT
+  KONTRAK
+  BERITA_ACARA
+  KV
+  PLANOGRAM
+  LAINNYA
+}
+
+enum PromoStatus {
+  DRAFT
+  BERJALAN
+  SELESAI
+  DIBATALKAN
+}
+
+enum PlatformSosmed {
+  INSTAGRAM
+  TIKTOK
+  FACEBOOK
+  YOUTUBE
+}
+
+enum JenisKonten {
+  REELS
+  FEED
+  STORY
+  VIDEO
+  INFOGRAFIS
+  LIVE
+}
+
+enum SeriPlu {
+  DEVICE
+  CARTRIDGE
+  LIQUID
+  TOBACCO_STICK
+  PARTS
+  ACCESSORIES
+  CIGARETTE
+  LIGHTER
+  NEW_ITEM_EXTERNAL
+}
+
+enum StatusPengajuan {
+  MENUNGGU
+  DISETUJUI
+  DITOLAK
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  DECLINE
+  LOGIN
+}
+
+// ──────────────────────────────────────────────── Core: Users
+
+model User {
+  id           String    @id @default(uuid())
+  nama         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  role         UserRole
+  aktif        Boolean   @default(true)
+  mfaAktif     Boolean   @default(false) @map("mfa_aktif")
+  storeCode    String?   @map("store_code") @db.VarChar(20)
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  regions          UserRegion[]
+  storeCrews       StoreCrew[]
+  supervisedStores Store[]          @relation("StoreSPV")
+  usulanNpd        UsulanNpd[]
+  usulanTag        UsulanTag[]
+  pengajuan        PengajuanProduk[]
+  contentReports   ContentReport[]
+  workflowSteps    WorkflowStep[]
+  auditTrail       AuditTrail[]
+  mediaUploads     MediaFile[]
+
+  @@map("users")
+}
+
+model UserRegion {
+  userId String @map("user_id")
+  region Region
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, region])
+  @@map("user_regions")
+}
+
+// ──────────────────────────────────────────── M1: Categories
+
+model Category {
+  id              String     @id @default(uuid())
+  segmentCode     String     @map("segment_code") @db.VarChar(4)
+  segment         String     @db.VarChar(50)
+  deptCode        String     @map("dept_code") @db.VarChar(4)
+  dept            String     @db.VarChar(50)
+  subDeptCode     String     @map("sub_dept_code") @db.VarChar(4)
+  subDept         String     @map("sub_dept") @db.VarChar(50)
+  categoryCode    String     @map("category_code") @db.VarChar(10)
+  category        String     @db.VarChar(80)
+  subCategoryCode String     @unique @map("sub_category_code") @db.VarChar(10)
+  subCategory     String     @map("sub_category") @db.VarChar(80)
+  kdHashmicro     String?    @map("kd_hashmicro") @db.VarChar(20)
+  kdCompLtw       String?    @map("kd_comp_ltw") @db.VarChar(20)
+  untukCoa        Boolean    @default(false) @map("untuk_coa")
+  status          StatusAktif @default(AKTIF)
+  alias           String?    @db.VarChar(100)
+  catatan         String?    @db.Text
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  updatedBy       String     @map("updated_by")
+
+  products  Product[]
+  usulanNpd UsulanNpd[]
+
+  @@map("categories")
+}
+
+// ──────────────────────────────────────────────── M1: Tags
+
+model Tag {
+  id        String     @id @default(uuid())
+  kode      String     @unique @db.VarChar(4)
+  nama      String     @db.VarChar(50)
+  jual      Boolean    @default(false)
+  po        Boolean    @default(false)
+  perlakuan String     @db.Text
+  warna     String     @default("default") @db.VarChar(10)
+  status    StatusAktif @default(AKTIF)
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  updatedBy String     @map("updated_by")
+
+  productTagRegions ProductTagRegion[]
+
+  @@map("tags")
+}
+
+// ──────────────────────────────────────────────── M1: Stores
+
+model Store {
+  id                     String      @id @default(uuid())
+  storeCode              String      @unique @map("store_code") @db.VarChar(20)
+  storeName              String      @map("store_name") @db.VarChar(100)
+  storeIdHM              String      @default("") @map("store_id_hm") @db.VarChar(30)
+  analyticalGroupHM      String      @default("") @map("analytical_group_hm") @db.VarChar(50)
+  storeType              StoreType   @map("store_type")
+  region                 Region
+  area                   String      @db.VarChar(50)
+  alamat                 String      @db.Text
+  kota                   String      @db.VarChar(50)
+  latitude               Decimal     @db.Decimal(10, 7)
+  longitude              Decimal     @db.Decimal(10, 7)
+  tglBuka                DateTime    @map("tgl_buka") @db.Date
+  tglTutup               DateTime?   @map("tgl_tutup") @db.Date
+  status                 StoreStatus @default(AKTIF)
+  relocateFromStoreCode  String?     @map("relocate_from_store_code") @db.VarChar(20)
+  spvId                  String?     @map("spv_id")
+  noTelp                 String      @default("") @map("no_telp") @db.VarChar(20)
+  luasM2                 Int         @default(0) @map("luas_m2")
+  jumlahRak              Int         @default(0) @map("jumlah_rak")
+  planogramAktif         String?     @map("planogram_aktif") @db.VarChar(100)
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+  updatedBy              String      @map("updated_by")
+
+  spv            User?          @relation("StoreSPV", fields: [spvId], references: [id])
+  crews          StoreCrew[]
+  kontrakStores  KontrakStore[]
+  aset           Aset[]
+  promosiStores  PromosiStore[]
+  contentReports ContentReport[]
+
+  @@map("stores")
+}
+
+model StoreCrew {
+  storeId String @map("store_id")
+  userId  String @map("user_id")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([storeId, userId])
+  @@map("store_crews")
+}
+
+// ──────────────────────────────────────────── M1: Principals
+
+model Principal {
+  id          String     @id @default(uuid())
+  kode        String     @unique @db.VarChar(20)
+  nama        String     @db.VarChar(100)
+  pic         String     @db.VarChar(100)
+  telp        String     @db.VarChar(20)
+  email       String     @db.VarChar(255)
+  alamat      String     @db.Text
+  npwp        String     @db.VarChar(30)
+  isiSatuPack Int        @default(1) @map("isi_satu_pack")
+  status      StatusAktif @default(AKTIF)
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  updatedBy   String     @map("updated_by")
+
+  brands    PrincipalBrand[]
+  products  Product[]
+  usulanNpd UsulanNpd[]
+  kontrak   Kontrak[]
+  aset      Aset[]
+  promosi   Promosi[]
+  dokumen   Dokumen[]
+
+  @@map("principals")
+}
+
+model PrincipalBrand {
+  id          String @id @default(uuid())
+  principalId String @map("principal_id")
+  brand       String @db.VarChar(100)
+
+  principal Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
+
+  @@unique([principalId, brand])
+  @@map("principal_brands")
+}
+
+// ──────────────────────────────────────────── M1: Products
+
+model Product {
+  id          String        @id @default(uuid())
+  kodeProduct String        @unique @map("kode_product") @db.VarChar(30)
+  barcode     String        @db.VarChar(30)
+  namaProduct String        @map("nama_product") @db.VarChar(200)
+  principalId String        @map("principal_id")
+  categoryId  String        @map("category_id")
+  brand       String        @db.VarChar(100)
+  uom         String        @db.VarChar(20)
+  isiSatuPack Int           @default(1) @map("isi_satu_pack")
+  hargaBeli   Decimal       @default(0) @map("harga_beli") @db.Decimal(15, 2)
+  hargaJual   Decimal       @default(0) @map("harga_jual") @db.Decimal(15, 2)
+  msrp        Decimal       @default(0) @db.Decimal(15, 2)
+  c1          String?       @db.VarChar(50)
+  c2          String?       @db.VarChar(50)
+  c3          String?       @db.VarChar(50)
+  c4          String?       @db.VarChar(50)
+  c5          String?       @db.VarChar(50)
+  status      ProductStatus @default(DRAFT)
+  tglAktif    DateTime?     @map("tgl_aktif") @db.Date
+  dariUsulanId String?      @map("dari_usulan_id")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  updatedBy   String        @map("updated_by")
+
+  principal      Principal          @relation(fields: [principalId], references: [id])
+  category       Category           @relation(fields: [categoryId], references: [id])
+  tagRegions     ProductTagRegion[]
+  pluAllocations PluAllocation[]
+  freeGifts      FreeGift[]
+  usulanTag      UsulanTag[]
+  promosiProducts PromosiProduct[]
+
+  @@map("products")
+}
+
+model ProductTagRegion {
+  productId String @map("product_id")
+  region    Region
+  tagId     String @map("tag_id")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id])
+
+  @@id([productId, region])
+  @@map("product_tag_regions")
+}
+
+// ──────────────────────────────────────── M2: Usulan NPD
+
+model UsulanNpd {
+  id                String       @id @default(uuid())
+  nomor             String       @unique @db.VarChar(30)
+  sumber            SumberUsulan
+  pengusulId        String       @map("pengusul_id")
+  barcode           String       @db.VarChar(30)
+  namaProduct       String       @map("nama_product") @db.VarChar(200)
+  principalId       String       @map("principal_id")
+  categoryId        String       @map("category_id")
+  brand             String       @db.VarChar(100)
+  uom               String       @db.VarChar(20)
+  isiSatuPack       Int          @default(1) @map("isi_satu_pack")
+  hargaBeli         Decimal      @default(0) @map("harga_beli") @db.Decimal(15, 2)
+  hargaJual         Decimal      @default(0) @map("harga_jual") @db.Decimal(15, 2)
+  msrp              Decimal      @default(0) @db.Decimal(15, 2)
+  c1                String?      @db.VarChar(50)
+  c2                String?      @db.VarChar(50)
+  c3                String?      @db.VarChar(50)
+  c4                String?      @db.VarChar(50)
+  c5                String?      @db.VarChar(50)
+  keterangan        String?      @db.Text
+  status            UsulanStatus @default(DRAFT)
+  produkId          String?      @map("produk_id")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  pengusul  User      @relation(fields: [pengusulId], references: [id])
+  principal Principal @relation(fields: [principalId], references: [id])
+  category  Category  @relation(fields: [categoryId], references: [id])
+
+  @@map("usulan_npd")
+}
+
+// ──────────────────────────────────────── M2: Usulan Tag
+
+model UsulanTag {
+  id         String       @id @default(uuid())
+  nomor      String       @unique @db.VarChar(30)
+  sumber     SumberUsulan
+  pengusulId String       @map("pengusul_id")
+  productId  String       @map("product_id")
+  reason     String       @db.Text
+  keterangan String?      @db.Text
+  status     UsulanStatus @default(DRAFT)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  pengusul  User                 @relation(fields: [pengusulId], references: [id])
+  product   Product              @relation(fields: [productId], references: [id])
+  perubahan UsulanTagPerubahan[]
+
+  @@map("usulan_tag")
+}
+
+model UsulanTagPerubahan {
+  id          String @id @default(uuid())
+  usulanTagId String @map("usulan_tag_id")
+  region      Region
+  tagAsal     String @map("tag_asal") @db.VarChar(4)
+  tagTujuan   String @map("tag_tujuan") @db.VarChar(4)
+
+  usulanTag UsulanTag @relation(fields: [usulanTagId], references: [id], onDelete: Cascade)
+
+  @@map("usulan_tag_perubahan")
+}
+
+// ──────────────────────────── Shared: Workflow Steps
+
+model WorkflowStep {
+  id         String       @id @default(uuid())
+  entityType String       @map("entity_type") @db.VarChar(30)
+  entityId   String       @map("entity_id")
+  status     UsulanStatus
+  aktorId    String       @map("aktor_id")
+  aktorRole  UserRole     @map("aktor_role")
+  alasan     String?      @db.Text
+  at         DateTime     @default(now())
+
+  aktor User @relation(fields: [aktorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("workflow_steps")
+}
+
+// ──────────────────────────────────────── M3: Kontrak
+
+model Kontrak {
+  id            String        @id @default(uuid())
+  nomorSurat    String        @unique @map("nomor_surat") @db.VarChar(50)
+  judul         String        @db.VarChar(200)
+  principalId   String        @map("principal_id")
+  jenis         JenisKontrak
+  ruangLingkup  String        @map("ruang_lingkup") @db.Text
+  masaMulai     DateTime      @map("masa_mulai") @db.Date
+  masaBerakhir  DateTime      @map("masa_berakhir") @db.Date
+  nilai         Decimal       @default(0) @db.Decimal(15, 2)
+  pembuat       String        @db.VarChar(100)
+  penyetuju     String        @db.VarChar(100)
+  status        KontrakStatus @default(DRAFT)
+  catatan       String?       @db.Text
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  updatedBy     String        @map("updated_by")
+
+  principal     Principal      @relation(fields: [principalId], references: [id])
+  kontrakStores KontrakStore[]
+  dokumen       Dokumen[]
+  aset          Aset[]
+
+  @@map("kontrak")
+}
+
+model KontrakStore {
+  kontrakId String @map("kontrak_id")
+  storeId   String @map("store_id")
+
+  kontrak Kontrak @relation(fields: [kontrakId], references: [id], onDelete: Cascade)
+  store   Store   @relation(fields: [storeId], references: [id])
+
+  @@id([kontrakId, storeId])
+  @@map("kontrak_stores")
+}
+
+// ──────────────────────────────────────── M3: Dokumen
+
+model Dokumen {
+  id          String       @id @default(uuid())
+  nomor       String       @unique @db.VarChar(50)
+  judul       String       @db.VarChar(200)
+  jenis       JenisDokumen
+  principalId String?      @map("principal_id")
+  kontrakId   String?      @map("kontrak_id")
+  tanggal     DateTime     @db.Date
+  keterangan  String?      @db.Text
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  updatedBy   String       @map("updated_by")
+
+  principal Principal? @relation(fields: [principalId], references: [id])
+  kontrak   Kontrak?   @relation(fields: [kontrakId], references: [id])
+
+  @@map("dokumen")
+}
+
+// ──────────────────────────────────────── M4: Aset
+
+model Aset {
+  id          String     @id @default(uuid())
+  kodeAset    String     @unique @map("kode_aset") @db.VarChar(30)
+  nama        String     @db.VarChar(100)
+  jenis       JenisAset
+  tangible    Boolean    @default(true)
+  principalId String     @map("principal_id")
+  kontrakId   String?    @map("kontrak_id")
+  storeId     String     @map("store_id")
+  qty         Int        @default(1)
+  kondisi     KondisiAset @default(GOOD)
+  tglMasuk    DateTime   @map("tgl_masuk") @db.Date
+  tglRetur    DateTime?  @map("tgl_retur") @db.Date
+  pic         String     @db.VarChar(100)
+  catatan     String?    @db.Text
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  updatedBy   String     @map("updated_by")
+
+  principal Principal @relation(fields: [principalId], references: [id])
+  kontrak   Kontrak?  @relation(fields: [kontrakId], references: [id])
+  store     Store     @relation(fields: [storeId], references: [id])
+
+  @@map("aset")
+}
+
+// ──────────────────────────────────────── M5: Promosi
+
+model Promosi {
+  id          String      @id @default(uuid())
+  kodePromo   String      @unique @map("kode_promo") @db.VarChar(30)
+  nama        String      @db.VarChar(200)
+  principalId String      @map("principal_id")
+  mekanisme   String      @db.Text
+  tglMulai    DateTime    @map("tgl_mulai") @db.Date
+  tglSelesai  DateTime    @map("tgl_selesai") @db.Date
+  status      PromoStatus @default(DRAFT)
+  budget      Decimal     @default(0) @db.Decimal(15, 2)
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  updatedBy   String      @map("updated_by")
+
+  principal       Principal        @relation(fields: [principalId], references: [id])
+  promosiStores   PromosiStore[]
+  promosiProducts PromosiProduct[]
+  promosiRegions  PromosiRegion[]
+
+  @@map("promosi")
+}
+
+model PromosiStore {
+  promosiId String @map("promosi_id")
+  storeId   String @map("store_id")
+
+  promosi Promosi @relation(fields: [promosiId], references: [id], onDelete: Cascade)
+  store   Store   @relation(fields: [storeId], references: [id])
+
+  @@id([promosiId, storeId])
+  @@map("promosi_stores")
+}
+
+model PromosiProduct {
+  promosiId String @map("promosi_id")
+  productId String @map("product_id")
+
+  promosi Promosi @relation(fields: [promosiId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@id([promosiId, productId])
+  @@map("promosi_products")
+}
+
+model PromosiRegion {
+  promosiId String @map("promosi_id")
+  region    Region
+
+  promosi Promosi @relation(fields: [promosiId], references: [id], onDelete: Cascade)
+
+  @@id([promosiId, region])
+  @@map("promosi_regions")
+}
+
+// ──────────────────────────────────── M6: Platform & Konten
+
+model AkunPlatform {
+  id        String         @id @default(uuid())
+  platform  PlatformSosmed
+  username  String         @db.VarChar(100)
+  pic       String         @db.VarChar(100)
+  region    String         @db.VarChar(10)
+  followers Int            @default(0)
+  vaultRef  String         @map("vault_ref") @db.VarChar(200)
+  status    StatusAktif    @default(AKTIF)
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  @@map("akun_platform")
+}
+
+model ContentReport {
+  id          String         @id @default(uuid())
+  tanggal     DateTime       @db.Date
+  storeId     String         @map("store_id")
+  crewId      String         @map("crew_id")
+  namaKonten  String         @map("nama_konten") @db.VarChar(200)
+  platform    PlatformSosmed
+  jenisKonten JenisKonten    @map("jenis_konten")
+  promosiId   String?        @map("promosi_id")
+  like        Int            @default(0)
+  comment     Int            @default(0)
+  share       Int            @default(0)
+  repost      Int            @default(0)
+  watchTime   Int            @default(0) @map("watch_time")
+  catatan     String?        @db.Text
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  store Store @relation(fields: [storeId], references: [id])
+  crew  User  @relation(fields: [crewId], references: [id])
+
+  @@map("content_reports")
+}
+
+// ──────────────────────────────────── MDM: PLU & Pengajuan
+
+model PluAllocation {
+  id        String  @id @default(uuid())
+  no        Int
+  seri      SeriPlu
+  productId String? @map("product_id")
+
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@unique([no, seri])
+  @@map("plu_allocations")
+}
+
+model PengajuanProduk {
+  id        String          @id @default(uuid())
+  tiket     String          @unique @db.VarChar(30)
+  tglAjuan  DateTime        @map("tgl_ajuan") @db.Date
+  pengajuId String          @map("pengaju_id")
+
+  // Identitas Produk
+  name         String    @db.VarChar(200)
+  barcode      String?   @db.VarChar(30)
+  brand        String?   @db.VarChar(100)
+  series       String?   @db.VarChar(100)
+  brandSeries  String?   @map("brand_series") @db.VarChar(200)
+  principle    String?   @db.VarChar(100)
+  minor        String?   @db.VarChar(50)
+  mpkm         String?   @db.VarChar(50)
+
+  // Klasifikasi
+  tag         String?  @db.VarChar(10)
+  segment     String?  @db.VarChar(50)
+  dept        String?  @db.VarChar(50)
+  subDept     String?  @map("sub_dept") @db.VarChar(50)
+  category    String?  @db.VarChar(80)
+  subCategory String?  @map("sub_category") @db.VarChar(80)
+
+  // Spesifikasi Teknis
+  volume  String? @db.VarChar(30)
+  nic     String? @db.VarChar(30)
+  length  String? @db.VarChar(30)
+  width   String? @db.VarChar(30)
+  height  String? @db.VarChar(30)
+  resOhm  String? @map("res_ohm") @db.VarChar(30)
+  battery String? @db.VarChar(30)
+  maxWatt String? @map("max_watt") @db.VarChar(30)
+
+  // Konversi
+  c1 String? @db.VarChar(50)
+  c2 String? @db.VarChar(50)
+  c3 String? @db.VarChar(50)
+  c4 String? @db.VarChar(50)
+  c5 String? @db.VarChar(50)
+
+  // Workflow
+  status          StatusPengajuan @default(MENUNGGU)
+  kodeProduk      String?        @map("kode_produk") @db.VarChar(30)
+  catatanApprover String?        @map("catatan_approver") @db.Text
+  produkId        String?        @map("produk_id")
+
+  pengaju User @relation(fields: [pengajuId], references: [id])
+
+  @@map("pengajuan_produk")
+}
+
+model FreeGift {
+  id                String   @id @default(uuid())
+  kodeProduct       String   @unique @map("kode_product") @db.VarChar(30)
+  productIndukId    String   @map("product_induk_id")
+  deskripsi         String   @db.VarChar(200)
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  updatedBy         String   @map("updated_by")
+
+  productInduk Product @relation(fields: [productIndukId], references: [id])
+
+  @@map("free_gifts")
+}
+
+// ──────────────────────────────────── System: Media Files
+
+model MediaFile {
+  id          String   @id @default(uuid())
+  entityType  String   @map("entity_type") @db.VarChar(30)
+  entityId    String   @map("entity_id")
+  field       String   @default("default") @db.VarChar(30)
+  nama        String   @db.VarChar(255)
+  tipe        String   @db.VarChar(50)
+  ukuran      Int
+  storagePath String   @map("storage_path") @db.VarChar(500)
+  uploadedAt  DateTime @default(now()) @map("uploaded_at")
+  uploadedBy  String   @map("uploaded_by")
+
+  uploader User @relation(fields: [uploadedBy], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("media_files")
+}
+
+// ──────────────────────────────────── System: Audit Trail
+
+model AuditTrail {
+  id         String      @id @default(uuid())
+  entity     String      @db.VarChar(30)
+  entityId   String      @map("entity_id")
+  entityLabel String     @map("entity_label") @db.VarChar(200)
+  action     AuditAction
+  field      String?     @db.VarChar(50)
+  before     String?     @db.Text
+  after      String?     @db.Text
+  aktorId    String      @map("aktor_id")
+  aktorRole  UserRole    @map("aktor_role")
+  at         DateTime    @default(now())
+
+  aktor User @relation(fields: [aktorId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([at])
+  @@map("audit_trail")
+}
