@@ -1,26 +1,219 @@
 @import "tailwindcss";
+@import "@heroui/styles";
 
+/* ---------------------------------------------------------------------------
+   Tone merek — merah C Store. Menimpa token accent bawaan HeroUI (aslinya biru)
+   sehingga tombol primer, tautan, state aktif, dan cincin fokus ikut berubah.
+
+   Karena accent kini merah, token `danger` digeser ke burgundy yang lebih gelap
+   supaya aksi merusak tetap terbaca beda dari aksen merek — dan setiap aksi
+   destruktif selalu disertai ikon + label, tidak pernah warna saja.
+--------------------------------------------------------------------------- */
+:root,
+[data-theme="default"] {
+  --accent: #d31d24;
+  --accent-hover: #b3161d;
+  --accent-foreground: #ffffff;
+  --accent-soft: color-mix(in oklab, #d31d24 12%, transparent);
+  --accent-soft-hover: color-mix(in oklab, #d31d24 20%, transparent);
+  --accent-soft-foreground: #8f1015;
+  --focus: #d31d24;
+  --link: #b3161d;
+
+  --danger: #9f1239;
+  --danger-hover: #881337;
+  --danger-soft: color-mix(in oklab, #9f1239 12%, transparent);
+  --danger-soft-hover: color-mix(in oklab, #9f1239 20%, transparent);
+  --danger-soft-foreground: #7a0f2e;
+
+  /* Warna merek mentah — dipakai logo, band header form, dan header cetak. */
+  --brand-red: #ee1c25;
+  --brand-yellow: #ffd400;
+  --brand-ink: #1c1c1c;
+  --brand-deep: #8f1015;
+}
+
+/* ---------------------------------------------------------------------------
+   Radius — HeroUI v3 punya satu knob global (`--radius`), semua radius lain
+   (card, chip, modal, dst.) diturunkan darinya lewat calc(). Field (Input,
+   Select, Textarea) punya turunannya sendiri, `--field-radius`, yang di sini
+   ditimpa langsung supaya lebih membulat dari turunan otomatisnya.
+
+   Skala nilainya mengikuti konvensi Tailwind (rounded-xl = 0.75rem, dst.):
+   large ~ 1rem untuk radius global, xl = 0.75rem untuk field.
+
+   Ditulis sebagai selector polos (tidak dibungkus @layer) seperti override
+   --accent di atas — cascade layer membuat aturan tak berlapis SELALU menang
+   atas @layer base milik HeroUI, apa pun urutannya.
+--------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --radius: 1rem;
+  --field-radius: 0.75rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ---------------------------------------------------------------------------
+   Band kolom form pengajuan — DARKMODE_AUDIT.md.
+   Warna tetap, tidak ikut tema (skema pembeda kolom, bukan permukaan UI),
+   satu sumber di sini alih-alih hex tersebar di komponen.
+--------------------------------------------------------------------------- */
+:root {
+  --band-identitas: #8f1015;
+  --band-klasifikasi: #0e7a63;
+  --band-teknis: #6d28a8;
+  --band-konversi: #c2540a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark,
+[data-theme="dark"] {
+  --accent: #f0464c;
+  --accent-hover: #f56a6f;
+  --accent-foreground: #2a0508;
+  --accent-soft: color-mix(in oklab, #f0464c 22%, transparent);
+  --accent-soft-hover: color-mix(in oklab, #f0464c 30%, transparent);
+  --accent-soft-foreground: #ffc9cb;
+  --focus: #f0464c;
+  --link: #f56a6f;
+
+  --danger: #e11d63;
+  --danger-hover: #f0357a;
+  --danger-soft: color-mix(in oklab, #e11d63 24%, transparent);
+  --danger-soft-hover: color-mix(in oklab, #e11d63 32%, transparent);
+  --danger-soft-foreground: #ffc2d8;
+
+  --brand-red: #ee1c25;
+  --brand-yellow: #ffd400;
+  --brand-ink: #f5f5f5;
+  --brand-deep: #f0464c;
+}
+
+/* ---------------------------------------------------------------------------
+   MMS — Merchandising & Marketing Management System
+   Chart palette: reference dataviz palette, validated against HeroUI surfaces
+   (light #ffffff, dark #27272a). Both modes: ALL CHECKS PASS.
+   Light mode WARN: aqua/yellow/magenta < 3:1 vs surface -> relief rule applies
+   (charts ship visible direct labels + a table view toggle).
+--------------------------------------------------------------------------- */
+:root {
+  --viz-1: #2a78d6; /* blue    */
+  --viz-2: #eb6834; /* orange  */
+  --viz-3: #1baf7a; /* aqua    */
+  --viz-4: #eda100; /* yellow  */
+  --viz-5: #e87ba4; /* magenta */
+  --viz-6: #008300; /* green   */
+  --viz-7: #4a3aa7; /* violet  */
+  --viz-8: #e34948; /* red     */
+
+  --viz-seq-100: #cde2fb;
+  --viz-seq-250: #86b6ef;
+  --viz-seq-400: #3987e5;
+  --viz-seq-550: #1c5cab;
+  --viz-seq-700: #0d366b;
+
+  /* Warna default chart satu-seri tetap slot biru yang sudah tervalidasi.
+     Merah TIDAK dipakai sebagai warna seri karena di aplikasi ini merah sudah
+     berarti "kritis" (kontrak lewat, barcode duplikat) — lihat --viz-critical. */
+  --viz-solo: var(--viz-1);
+
+  --viz-good: #0ca30c;
+  --viz-warning: #fab219;
+  --viz-serious: #ec835a;
+  --viz-critical: #d03b3b;
+
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-ink-muted: #898781;
+  --viz-delta-up: #006300;
+}
+
+.dark,
+[data-theme="dark"] {
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+  --viz-5: #d55181;
+  --viz-6: #008300;
+  --viz-7: #9085e9;
+  --viz-8: #e66767;
+
+  --viz-seq-100: #184f95;
+  --viz-seq-250: #256abf;
+  --viz-seq-400: #3987e5;
+  --viz-seq-550: #6da7ec;
+  --viz-seq-700: #b7d3f6;
+
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --viz-ink-muted: #898781;
+  --viz-delta-up: #0ca30c;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Tabular figures for anything that must align vertically. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Graphify — chart toggle button (Tabel / Grafik). */
+.graphify-toggle {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-md, 0.375rem);
+  border: none;
+  background: transparent;
+  color: var(--color-foreground);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.graphify-toggle:hover {
+  background: var(--color-default);
+}
+.graphify-toggle[aria-pressed="true"] {
+  background: var(--color-default);
+}
+
+/* Inline-edit grid cells (R9: tambah baris tanpa modal). */
+.cell-input {
+  width: 100%;
+  background: transparent;
+  outline: none;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+}
+.cell-input:focus {
+  background: var(--color-field);
+  box-shadow: 0 0 0 2px var(--color-focus);
+}
+
+/* --- Print / export PDF (R5: export aset & toko ke PDF via cetak) --- */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .print-sheet {
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+.print-only {
+  display: none;
 }

@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Graphify Explorer — peta relasi ERP Wanna Be</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: #0f0f1a;
+  color: #e0e0e8;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  display: flex;
+  overflow: hidden;
+}
+
+#gx-panggung { flex: 1; position: relative; min-width: 0; }
+#gx-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+#gx-canvas:active { cursor: grabbing; }
+
+#gx-tip {
+  position: absolute; display: none; pointer-events: none;
+  background: rgba(26,26,46,0.96); border: 1px solid #34344e;
+  border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.5;
+  max-width: 260px; box-shadow: 0 4px 16px rgba(0,0,0,0.45); z-index: 5;
+}
+
+#gx-atas {
+  position: absolute; top: 12px; left: 14px; right: 14px;
+  display: flex; align-items: center; gap: 10px; pointer-events: none;
+}
+#gx-judul { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+#gx-alat { margin-left: auto; display: flex; gap: 6px; pointer-events: auto; }
+.gx-btn {
+  background: rgba(26,26,46,0.9); border: 1px solid #34344e; color: #d6d6e2;
+  border-radius: 7px; padding: 5px 11px; font-size: 12px; cursor: pointer;
+}
+.gx-btn:hover { border-color: #4E79A7; color: #fff; }
+.gx-btn-aktif { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+#gx-sidebar {
+  width: 300px; flex-shrink: 0; background: #1a1a2e; border-left: 1px solid #2a2a4e;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.gx-bagian { border-bottom: 1px solid #2a2a4e; padding: 12px; }
+.gx-tajuk {
+  font-size: 11px; color: #8f8fa6; text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 8px; font-weight: 600;
+}
+
+#gx-cari {
+  width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e8;
+  padding: 7px 10px; border-radius: 6px; font-size: 13px; outline: none;
+}
+#gx-cari:focus { border-color: #4E79A7; }
+#gx-hasil { display: none; max-height: 190px; overflow-y: auto; margin-top: 6px; }
+.gx-hasil-item {
+  padding: 5px 8px; cursor: pointer; border-radius: 4px; font-size: 12px;
+  border-left: 3px solid #333; display: flex; justify-content: space-between; gap: 8px;
+}
+.gx-hasil-item:hover { background: #2a2a4e; }
+.gx-hasil-item em, .gx-tetangga em { font-style: normal; color: #7d7d94; font-size: 11px; flex-shrink: 0; }
+
+#gx-info { font-size: 13px; min-height: 90px; }
+.gx-kosong { color: #5c5c72; font-style: italic; }
+.gx-judul-simpul { font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; line-height: 1.35; }
+.gx-titik { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.gx-baris { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; font-size: 12px; }
+.gx-baris span { color: #8f8fa6; }
+.gx-baris b { font-weight: 500; text-align: right; word-break: break-word; }
+.gx-sub { margin: 10px 0 4px; font-size: 11px; color: #8f8fa6; text-transform: uppercase; letter-spacing: 0.05em; }
+.gx-daftar { max-height: 180px; overflow-y: auto; }
+.gx-tetangga {
+  display: flex; justify-content: space-between; gap: 8px; align-items: center;
+  padding: 3px 7px; margin: 2px 0; border-radius: 4px; cursor: pointer;
+  font-size: 12px; border-left: 3px solid #333;
+}
+.gx-tetangga:hover { background: #2a2a4e; }
+
+#gx-legenda-bagian { flex: 1; overflow-y: auto; padding: 12px; }
+.gx-legenda-item {
+  display: flex; align-items: center; gap: 8px; padding: 4px 0;
+  cursor: pointer; font-size: 12px; border-radius: 4px;
+}
+.gx-legenda-item:hover { background: #2a2a4e; }
+.gx-redup { opacity: 0.4; }
+.gx-legenda-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gx-legenda-n { color: #6c6c84; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+.gx-cb {
+  appearance: none; -webkit-appearance: none; width: 14px; height: 14px;
+  border: 1.5px solid #3a3a5e; border-radius: 3px; background: #0f0f1a;
+  cursor: pointer; position: relative; flex-shrink: 0; margin: 0;
+}
+.gx-cb:checked { background: #4E79A7; border-color: #4E79A7; }
+.gx-cb:checked::after {
+  content: ''; position: absolute; left: 3.5px; top: 1px; width: 4px; height: 7px;
+  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.gx-cb:indeterminate { background: #4E79A7; border-color: #4E79A7; }
+.gx-cb:indeterminate::after {
+  content: ''; position: absolute; left: 2px; top: 5px; width: 8px; height: 2px;
+  background: #fff; border: none; transform: none;
+}
+.gx-semua-baris { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: #a8a8bd; cursor: pointer; }
+
+#gx-stats { padding: 10px 12px; font-size: 11px; color: #5c5c72; border-top: 1px solid #2a2a4e; }
+#gx-bantuan { padding: 0 12px 10px; font-size: 11px; color: #4e4e63; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="gx-panggung">
+  <canvas id="gx-canvas"></canvas>
+  <div id="gx-tip"></div>
+  <div id="gx-atas">
+    <span id="gx-judul">Peta relasi</span>
+    <div id="gx-alat">
+      <button type="button" id="gx-modus" class="gx-btn">Warna: Komunitas</button>
+      <button type="button" id="gx-hyper" class="gx-btn">Sorotan alur</button>
+      <button type="button" id="gx-muat" class="gx-btn">Muat ke layar</button>
+    </div>
+  </div>
+</div>
+
+<aside id="gx-sidebar">
+  <div class="gx-bagian">
+    <input id="gx-cari" type="text" placeholder="Cari simpul…" autocomplete="off" />
+    <div id="gx-hasil"></div>
+  </div>
+
+  <div class="gx-bagian">
+    <div class="gx-tajuk">Info simpul</div>
+    <div id="gx-info"></div>
+  </div>
+
+  <div id="gx-legenda-bagian">
+    <div class="gx-tajuk" id="gx-legenda-judul">Komunitas</div>
+    <label class="gx-semua-baris">
+      <input type="checkbox" id="gx-semua" class="gx-cb" checked /> Pilih semua
+    </label>
+    <div id="gx-legenda"></div>
+  </div>
+
+  <div id="gx-stats"></div>
+  <div id="gx-bantuan">
+    Seret latar untuk menggeser · gulir untuk zoom · seret simpul untuk menatanya ulang.
+  </div>
+</aside>
+
+<script>
+/**
+ * Graphify Explorer — penjelajah knowledge graph interaktif.
+ *
+ * JavaScript polos tanpa impor apa pun, sama seperti `core.js`, supaya bisa
+ * di-inline ke dalam satu berkas .html yang jalan lewat file:// tanpa server
+ * dan tanpa internet.
+ *
+ * Yang membedakannya dari `network-graph.tsx` (versi React): berkas ini dibuat
+ * untuk MENJELAJAH graf besar — pan, zoom, seret simpul, cari, sorot tetangga,
+ * sembunyikan komunitas — sementara versi React dibuat untuk MEMBACA sekilas
+ * di dalam halaman aplikasi.
+ *
+ * Digambar ke <canvas>, bukan SVG: pada 1.000+ simpul, satu elemen DOM per
+ * simpul membuat peramban tersendat saat di-pan.
+ */
+
+/* ------------------------------------------------------------------ palet */
+
+/**
+ * Palet komunitas. Tableau 10 — dipilih karena antar-warnanya berjarak cukup
+ * jauh sehingga tetap terbedakan meski simpulnya kecil-kecil.
+ * @type {string[]}
+ */
+const PALET_KOMUNITAS = [
+  "#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F",
+  "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC",
+];
+
+/** Pembangkit acak berbenih — hasil deteksi & tata letak harus selalu sama. */
+function acakBerbenih(a) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* -------------------------------------------------------- deteksi komunitas */
+
+/**
+ * Satu tingkat Louvain: pindahkan simpul ke komunitas tetangga selama
+ * modularitas naik, sampai tidak ada perpindahan yang menguntungkan.
+ *
+ * @param {number} n jumlah simpul
+ * @param {Array<[number, number, number]>} E daftar [a, b, bobot]
+ * @returns {{com: Int32Array, jumlah: number}}
+ */
+function satuTingkatLouvain(n, E) {
+  const adj = Array.from({ length: n }, () => []);
+  const k = new Float64Array(n); // bobot tersambung per simpul
+  let m2 = 0; // 2m — dua kali total bobot graf
+
+  for (const [a, b, w] of E) {
+    if (a === b) {
+      adj[a].push([a, w]);
+      k[a] += 2 * w;
+      m2 += 2 * w;
+    } else {
+      adj[a].push([b, w]);
+      adj[b].push([a, w]);
+      k[a] += w;
+      k[b] += w;
+      m2 += 2 * w;
+    }
+  }
+  if (m2 === 0) return { com: Int32Array.from({ length: n }, (_, i) => i), jumlah: n };
+
+  const com = Int32Array.from({ length: n }, (_, i) => i);
+  const total = Float64Array.from(k); // Σ_tot bobot tiap komunitas
+
+  for (let pass = 0; pass < 24; pass++) {
+    let berubah = 0;
+
+    /* Urutan kunjungan tetap 0..n-1 — Louvain peka urutan, dan hasil yang
+       reproducible lebih berharga di sini ketimbang modularitas terakhir. */
+    for (let i = 0; i < n; i++) {
+      const ci = com[i];
+      const keKom = new Map();
+      for (const [j, w] of adj[i]) {
+        if (j === i) continue;
+        keKom.set(com[j], (keKom.get(com[j]) ?? 0) + w);
+      }
+
+      /* keluarkan i dari komunitasnya dulu, baru timbang semua pilihan */
+      total[ci] -= k[i];
+
+      let terbaik = ci;
+      let gainTerbaik = (keKom.get(ci) ?? 0) - (total[ci] * k[i]) / m2;
+
+      for (const [c, w] of keKom) {
+        const gain = w - (total[c] * k[i]) / m2;
+        /* seri dimenangkan indeks terkecil, sekali lagi demi determinisme */
+        if (gain > gainTerbaik + 1e-12 || (Math.abs(gain - gainTerbaik) <= 1e-12 && c < terbaik)) {
+          gainTerbaik = gain;
+          terbaik = c;
+        }
+      }
+
+      total[terbaik] += k[i];
+      if (terbaik !== ci) {
+        com[i] = terbaik;
+        berubah++;
+      }
+    }
+
+    if (!berubah) break;
+  }
+
+  const peta = new Map();
+  for (let i = 0; i < n; i++) if (!peta.has(com[i])) peta.set(com[i], peta.size);
+  for (let i = 0; i < n; i++) com[i] = peta.get(com[i]);
+  return { com, jumlah: peta.size };
+}
+
+/**
+ * Deteksi komunitas dengan Louvain (optimasi modularitas berjenjang).
+ *
+ * Label propagation sempat dicoba dan gagal pada data ini: graf master data
+ * didominasi hub — delapan principal menempel ke puluhan produk — sehingga
+ * satu label menyapu hampir seluruh graf dan menyisakan dua komunitas saja.
+ * Louvain menimbang untung-rugi tiap perpindahan terhadap modularitas, jadi
+ * hub tidak otomatis menelan tetangganya.
+ *
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<{source: string, target: string}>} edges
+ * @returns {number[]} indeks komunitas per simpul, 0 = komunitas terbesar
+ */
+function deteksiKomunitas(nodes, edges) {
+  const n = nodes.length;
+  if (!n) return [];
+
+  const idx = new Map(nodes.map((d, i) => [d.id, i]));
+
+  /* Tautan ganda digabung jadi satu dengan bobot — Louvain menghitung bobot,
+     dan ini juga memangkas kerja tiap tingkat. */
+  const bobot = new Map();
+  for (const e of edges) {
+    const a = idx.get(e.source);
+    const b = idx.get(e.target);
+    if (a === undefined || b === undefined || a === b) continue;
+    const kunci = a < b ? `${a}|${b}` : `${b}|${a}`;
+    bobot.set(kunci, (bobot.get(kunci) ?? 0) + 1);
+  }
+  let E = [...bobot.entries()].map(([kunci, w]) => {
+    const [a, b] = kunci.split("|");
+    return [Number(a), Number(b), w];
+  });
+
+  let milik = Int32Array.from({ length: n }, (_, i) => i); // simpul → supernode
+  let jumlahSimpul = n;
+
+  for (let tingkat = 0; tingkat < 10; tingkat++) {
+    const { com, jumlah } = satuTingkatLouvain(jumlahSimpul, E);
+    for (let i = 0; i < n; i++) milik[i] = com[milik[i]];
+    if (jumlah === jumlahSimpul) break; // sudah tidak bisa dipadatkan lagi
+
+    /* Padatkan: tiap komunitas jadi satu simpul, bobot tautan dijumlahkan. */
+    const gabung = new Map();
+    for (const [a, b, w] of E) {
+      const ca = com[a];
+      const cb = com[b];
+      const kunci = ca < cb ? `${ca}|${cb}` : `${cb}|${ca}`;
+      gabung.set(kunci, (gabung.get(kunci) ?? 0) + w);
+    }
+    E = [...gabung.entries()].map(([kunci, w]) => {
+      const [a, b] = kunci.split("|");
+      return [Number(a), Number(b), w];
+    });
+    jumlahSimpul = jumlah;
+  }
+
+  /* Nomori ulang: komunitas terbesar jadi 0, supaya warna paling menonjol
+     kebagian gugusan paling penting. */
+  const ukuran = new Map();
+  for (const l of milik) ukuran.set(l, (ukuran.get(l) ?? 0) + 1);
+  const peta = new Map(
+    [...ukuran.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+      .map(([l], i) => [l, i]),
+  );
+  return [...milik].map((l) => peta.get(l));
+}
+
+/* ------------------------------------------------------------- lambung cembung */
+
+/** Andrew monotone chain — pembungkus terluar sekumpulan titik. */
+function lambungCembung(titik) {
+  if (titik.length < 3) return titik;
+  const p = [...titik].sort((a, b) => a.x - b.x || a.y - b.y);
+  const silang = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const bawah = [];
+  for (const t of p) {
+    while (bawah.length >= 2 && silang(bawah[bawah.length - 2], bawah[bawah.length - 1], t) <= 0) bawah.pop();
+    bawah.push(t);
+  }
+  const atas = [];
+  for (let i = p.length - 1; i >= 0; i--) {
+    const t = p[i];
+    while (atas.length >= 2 && silang(atas[atas.length - 2], atas[atas.length - 1], t) <= 0) atas.pop();
+    atas.push(t);
+  }
+  bawah.pop();
+  atas.pop();
+  return bawah.concat(atas);
+}
+
+/* ----------------------------------------------------------------- utilitas */
+
+/** Lolos-kan teks sebelum masuk innerHTML — label simpul berasal dari data. */
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+const angka = (n) => new Intl.NumberFormat("id-ID").format(Math.round(n));
+
+/* ==================================================================== inti */
+
+/**
+ * Menyalakan penjelajah pada kerangka HTML yang sudah disiapkan build script.
+ *
+ * @param {{
+ *   nodes: Array<{id: string, label: string, group: string, hint?: string}>,
+ *   edges: Array<{source: string, target: string, kind?: string}>,
+ *   hyperedges?: Array<{id: string, label: string, nodes: string[]}>,
+ *   judul?: string,
+ * }} DATA
+ */
+function mulaiPenjelajah(DATA) {
+  const nodes = DATA.nodes ?? [];
+  const edges = DATA.edges ?? [];
+  const hyper = DATA.hyperedges ?? [];
+
+  const el = (id) => document.getElementById(id);
+  const kanvas = el("gx-canvas");
+  const ctx = kanvas.getContext("2d");
+
+  if (!nodes.length) {
+    el("gx-stats").textContent = "Graf kosong — tidak ada simpul untuk digambar.";
+    return;
+  }
+
+  /* ------------------------------------------------------- siapkan struktur */
+
+  const idx = new Map(nodes.map((d, i) => [d.id, i]));
+  const komunitas = deteksiKomunitas(nodes, edges);
+
+  /* Hanya tautan yang kedua ujungnya dikenal — data ekspor bisa saja terpotong. */
+  const tautan = edges.filter((e) => idx.has(e.source) && idx.has(e.target));
+
+  const derajat = new Int32Array(nodes.length);
+  const tetanggaSet = nodes.map(() => new Set());
+  for (const e of tautan) {
+    const a = idx.get(e.source);
+    const b = idx.get(e.target);
+    derajat[a]++;
+    derajat[b]++;
+    tetanggaSet[a].add(b);
+    tetanggaSet[b].add(a);
+  }
+
+  const kelompok = [...new Set(nodes.map((d) => d.group))];
+  const jumlahKomunitas = new Set(komunitas).size;
+
+  /* Warna: dua modus. Komunitas menjawab "mana gugusan yang rapat",
+     entitas menjawab "apa jenis benda ini". Keduanya berguna. */
+  let modusWarna = "komunitas";
+  const warnaSimpul = (i) =>
+    modusWarna === "komunitas"
+      ? PALET_KOMUNITAS[komunitas[i] % PALET_KOMUNITAS.length]
+      : PALET_KOMUNITAS[kelompok.indexOf(nodes[i].group) % PALET_KOMUNITAS.length];
+
+  const kunciSimpul = (i) => (modusWarna === "komunitas" ? komunitas[i] : kelompok.indexOf(nodes[i].group));
+
+  /* ------------------------------------------------------------ tata letak */
+
+  const W = 2400;
+  const H = 1600;
+  const posX = new Float64Array(nodes.length);
+  const posY = new Float64Array(nodes.length);
+
+  hitungTataLetak();
+
+  /**
+   * Force-directed (Fruchterman–Reingold) dengan aproksimasi grid.
+   *
+   * Tolakan penuh antar semua pasangan simpul adalah O(n²) per iterasi — pada
+   * 1.000 simpul itu sejuta perhitungan per putaran. Karena itu ruang dibagi
+   * menjadi sel; simpul hanya menolak tetangga dalam radius sel terdekat, dan
+   * gugusan jauh diwakili pusat massanya.
+   */
+  function hitungTataLetak() {
+    const n = nodes.length;
+    const rnd = acakBerbenih(7);
+    const dx = new Float64Array(n);
+    const dy = new Float64Array(n);
+
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      posX[i] = W / 2 + Math.cos(a) * (W / 3) * (0.35 + rnd() * 0.65);
+      posY[i] = H / 2 + Math.sin(a) * (H / 3) * (0.35 + rnd() * 0.65);
+    }
+
+    const E = tautan.map((e) => [idx.get(e.source), idx.get(e.target)]);
+    const k = Math.sqrt((W * H) / n) * 0.42;
+    const iterasi = Math.max(140, Math.min(420, Math.round(70000 / n)));
+    let suhu = W / 14;
+
+    const sel = k * 2.2;
+    const kolom = Math.max(1, Math.ceil(W / sel));
+    const baris = Math.max(1, Math.ceil(H / sel));
+
+    for (let s = 0; s < iterasi; s++) {
+      dx.fill(0);
+      dy.fill(0);
+
+      /* Bagi simpul ke dalam sel, lalu hitung pusat massa tiap sel. */
+      const isi = new Map();
+      for (let i = 0; i < n; i++) {
+        const cx = Math.min(kolom - 1, Math.max(0, Math.floor(posX[i] / sel)));
+        const cy = Math.min(baris - 1, Math.max(0, Math.floor(posY[i] / sel)));
+        const kunci = cy * kolom + cx;
+        let d = isi.get(kunci);
+        if (!d) isi.set(kunci, (d = { n: 0, x: 0, y: 0, anggota: [] }));
+        d.n++;
+        d.x += posX[i];
+        d.y += posY[i];
+        d.anggota.push(i);
+      }
+      for (const d of isi.values()) {
+        d.x /= d.n;
+        d.y /= d.n;
+      }
+
+      for (let i = 0; i < n; i++) {
+        const cx = Math.min(kolom - 1, Math.max(0, Math.floor(posX[i] / sel)));
+        const cy = Math.min(baris - 1, Math.max(0, Math.floor(posY[i] / sel)));
+
+        for (const [kunci, d] of isi) {
+          const gx = kunci % kolom;
+          const gy = (kunci - gx) / kolom;
+          const dekat = Math.abs(gx - cx) <= 1 && Math.abs(gy - cy) <= 1;
+
+          if (dekat) {
+            /* sel bertetangga: tolakan dihitung per simpul, presisi penuh */
+            for (const j of d.anggota) {
+              if (j === i) continue;
+              let vx = posX[i] - posX[j];
+              let vy = posY[i] - posY[j];
+              let d2 = vx * vx + vy * vy;
+              if (d2 < 0.01) {
+                vx = (rnd() - 0.5) * 0.1;
+                vy = (rnd() - 0.5) * 0.1;
+                d2 = 0.01;
+              }
+              const f = (k * k) / d2;
+              dx[i] += vx * f;
+              dy[i] += vy * f;
+            }
+          } else {
+            /* sel jauh: cukup diwakili pusat massanya, dikali jumlah anggota */
+            let vx = posX[i] - d.x;
+            let vy = posY[i] - d.y;
+            let d2 = vx * vx + vy * vy;
+            if (d2 < 1) d2 = 1;
+            const f = ((k * k) / d2) * d.n;
+            dx[i] += vx * f;
+            dy[i] += vy * f;
+          }
+        }
+      }
+
+      for (const [a, b] of E) {
+        const vx = posX[a] - posX[b];
+        const vy = posY[a] - posY[b];
+        const d = Math.sqrt(vx * vx + vy * vy) || 0.01;
+        const f = d / k;
+        dx[a] -= vx * f;
+        dy[a] -= vy * f;
+        dx[b] += vx * f;
+        dy[b] += vy * f;
+      }
+
+      for (let i = 0; i < n; i++) {
+        dx[i] += (W / 2 - posX[i]) * 0.05;
+        dy[i] += (H / 2 - posY[i]) * 0.05;
+      }
+
+      for (let i = 0; i < n; i++) {
+        const d = Math.sqrt(dx[i] * dx[i] + dy[i] * dy[i]) || 1;
+        const lim = Math.min(d, suhu);
+        posX[i] = Math.max(20, Math.min(W - 20, posX[i] + (dx[i] / d) * lim));
+        posY[i] = Math.max(20, Math.min(H - 20, posY[i] + (dy[i] / d) * lim));
+      }
+      suhu = Math.max(suhu * 0.975, 0.5);
+    }
+  }
+
+  const jariJari = (i) => 4 + Math.min(Math.sqrt(derajat[i]) * 2.1, 14);
+
+  /* --------------------------------------------------------------- keadaan */
+
+  let skala = 1;
+  let geserX = 0;
+  let geserY = 0;
+  let sorot = null; // simpul di bawah kursor
+  let pilih = null; // simpul yang diklik
+  const tersembunyi = new Set(); // kunci warna yang dimatikan
+  let seret = null;
+  let perluGambar = true;
+  let tampilHyper = false;
+
+  const terlihat = (i) => !tersembunyi.has(kunciSimpul(i));
+
+  /* Sepuluh simpul paling terhubung diberi label permanen; sisanya hanya saat
+     disorot. Kalau semua diberi label, teksnya saling menimpa dan tak terbaca. */
+  const peringkat = [...nodes.keys()].sort((a, b) => derajat[b] - derajat[a]);
+  const berlabel = new Set(peringkat.slice(0, 14));
+
+  /* --------------------------------------------------------------- gambar */
+
+  function ukuranUlang() {
+    const dpr = window.devicePixelRatio || 1;
+    const r = kanvas.getBoundingClientRect();
+    kanvas.width = Math.round(r.width * dpr);
+    kanvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    perluGambar = true;
+  }
+
+  function muatkan() {
+    const r = kanvas.getBoundingClientRect();
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < nodes.length; i++) {
+      if (posX[i] < minX) minX = posX[i];
+      if (posX[i] > maxX) maxX = posX[i];
+      if (posY[i] < minY) minY = posY[i];
+      if (posY[i] > maxY) maxY = posY[i];
+    }
+    const lebar = Math.max(maxX - minX, 1);
+    const tinggi = Math.max(maxY - minY, 1);
+    skala = Math.min(r.width / (lebar + 120), r.height / (tinggi + 120));
+    geserX = r.width / 2 - ((minX + maxX) / 2) * skala;
+    geserY = r.height / 2 - ((minY + maxY) / 2) * skala;
+    perluGambar = true;
+  }
+
+  const keLayarX = (x) => x * skala + geserX;
+  const keLayarY = (y) => y * skala + geserY;
+
+  function gambar() {
+    const r = kanvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, r.width, r.height);
+
+    const tetanggaSorot = sorot !== null ? tetanggaSet[sorot] : null;
+    const fokus = sorot ?? pilih;
+    const setFokus = fokus !== null ? tetanggaSet[fokus] : null;
+    const aktif = (i) => !setFokus || i === fokus || setFokus.has(i);
+
+    /* --- wilayah hyperedge, digambar paling bawah sebagai latar ---
+       Dimatikan secara baku: anggotanya tersebar, jadi lambungnya melebar
+       menutupi hampir seluruh graf dan justru menyulitkan pembacaan. */
+    if (tampilHyper) for (const h of hyper) {
+      const titik = h.nodes
+        .map((id) => idx.get(id))
+        .filter((i) => i !== undefined && terlihat(i))
+        .map((i) => ({ x: keLayarX(posX[i]), y: keLayarY(posY[i]) }));
+      if (titik.length < 3) continue;
+
+      const cx = titik.reduce((s, p) => s + p.x, 0) / titik.length;
+      const cy = titik.reduce((s, p) => s + p.y, 0) / titik.length;
+      const hull = lambungCembung(titik).map((p) => ({
+        x: cx + (p.x - cx) * 1.18,
+        y: cy + (p.y - cy) * 1.18,
+      }));
+
+      ctx.beginPath();
+      ctx.moveTo(hull[0].x, hull[0].y);
+      for (const p of hull.slice(1)) ctx.lineTo(p.x, p.y);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(99,102,241,0.10)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(99,102,241,0.38)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(165,180,252,0.85)";
+      ctx.font = "600 11px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(h.label, cx, cy - 6);
+    }
+
+    /* --- tautan --- */
+    ctx.lineWidth = 1;
+    for (const e of tautan) {
+      const a = idx.get(e.source);
+      const b = idx.get(e.target);
+      if (!terlihat(a) || !terlihat(b)) continue;
+
+      const terang = !setFokus || (aktif(a) && aktif(b));
+      ctx.strokeStyle = terang
+        ? setFokus
+          ? "rgba(200,205,225,0.55)"
+          : "rgba(120,125,150,0.20)"
+        : "rgba(120,125,150,0.05)";
+      ctx.lineWidth = terang && setFokus ? 1.6 : 0.8;
+      ctx.beginPath();
+      ctx.moveTo(keLayarX(posX[a]), keLayarY(posY[a]));
+      ctx.lineTo(keLayarX(posX[b]), keLayarY(posY[b]));
+      ctx.stroke();
+    }
+
+    /* --- simpul --- */
+    for (let i = 0; i < nodes.length; i++) {
+      if (!terlihat(i)) continue;
+      const on = aktif(i);
+      const x = keLayarX(posX[i]);
+      const y = keLayarY(posY[i]);
+      const rad = jariJari(i) * Math.min(Math.max(skala, 0.55), 1.9);
+
+      ctx.globalAlpha = on ? 1 : 0.16;
+      ctx.beginPath();
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
+      ctx.fillStyle = i === pilih ? "#ffffff" : warnaSimpul(i);
+      ctx.fill();
+      ctx.lineWidth = i === pilih ? 2.5 : 1;
+      ctx.strokeStyle = i === pilih ? warnaSimpul(i) : "rgba(15,15,26,0.9)";
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    /* --- label ---
+       Label yang bertumpuk lebih buruk daripada tidak ada label sama sekali,
+       jadi tiap teks dicek dulu terhadap kotak yang sudah tergambar. Simpul
+       paling terhubung didahulukan supaya yang penting yang menang. */
+    ctx.textAlign = "center";
+    ctx.font = "600 11px system-ui, sans-serif";
+
+    const kotak = [];
+    const bentrok = (a) =>
+      kotak.some((b) => !(a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2));
+
+    const kandidat = [];
+    for (let i = 0; i < nodes.length; i++) {
+      if (!terlihat(i)) continue;
+      const wajib = i === sorot || i === pilih;
+      const diminta = berlabel.has(i) || (tetanggaSorot && tetanggaSorot.has(i));
+      if (wajib || diminta) kandidat.push({ i, wajib });
+    }
+    kandidat.sort((a, b) => Number(b.wajib) - Number(a.wajib) || derajat[b.i] - derajat[a.i]);
+
+    for (const { i, wajib } of kandidat) {
+      const t = nodes[i].label.length > 26 ? `${nodes[i].label.slice(0, 25)}…` : nodes[i].label;
+      const lebar = ctx.measureText(t).width;
+      const x = keLayarX(posX[i]);
+      const y = keLayarY(posY[i]) - jariJari(i) * Math.min(Math.max(skala, 0.55), 1.9) - 7;
+      const k = { x1: x - lebar / 2 - 3, x2: x + lebar / 2 + 3, y1: y - 11, y2: y + 3 };
+
+      /* simpul yang sedang disorot/dipilih selalu berlabel — itu jawaban atas
+         tindakan pengguna barusan, tidak boleh dikalahkan label lain */
+      if (!wajib && bentrok(k)) continue;
+      kotak.push(k);
+
+      ctx.globalAlpha = aktif(i) ? 1 : 0.15;
+      /* garis tebal sewarna latar dulu, baru teksnya — supaya tetap terbaca
+         walau melintas di atas tautan yang padat */
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = "#0f0f1a";
+      ctx.strokeText(t, x, y);
+      ctx.fillStyle = "#e8e8f0";
+      ctx.fillText(t, x, y);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function putar() {
+    if (perluGambar) {
+      gambar();
+      perluGambar = false;
+    }
+    requestAnimationFrame(putar);
+  }
+
+  /* ------------------------------------------------------------ interaksi */
+
+  function simpulDi(sx, sy) {
+    let terdekat = null;
+    let jarakTerbaik = Infinity;
+    for (let i = 0; i < nodes.length; i++) {
+      if (!terlihat(i)) continue;
+      const dx = keLayarX(posX[i]) - sx;
+      const dy = keLayarY(posY[i]) - sy;
+      const d2 = dx * dx + dy * dy;
+      const r = jariJari(i) * Math.min(Math.max(skala, 0.55), 1.9) + 4;
+      if (d2 <= r * r && d2 < jarakTerbaik) {
+        jarakTerbaik = d2;
+        terdekat = i;
+      }
+    }
+    return terdekat;
+  }
+
+  kanvas.addEventListener("mousedown", (ev) => {
+    const r = kanvas.getBoundingClientRect();
+    const sx = ev.clientX - r.left;
+    const sy = ev.clientY - r.top;
+    const i = simpulDi(sx, sy);
+    seret = i !== null
+      ? { jenis: "simpul", i, sx, sy, geser: false }
+      : { jenis: "panggung", sx, sy, x0: geserX, y0: geserY, geser: false };
+  });
+
+  window.addEventListener("mousemove", (ev) => {
+    const r = kanvas.getBoundingClientRect();
+    const sx = ev.clientX - r.left;
+    const sy = ev.clientY - r.top;
+
+    if (seret) {
+      if (Math.abs(sx - seret.sx) + Math.abs(sy - seret.sy) > 3) seret.geser = true;
+      if (seret.jenis === "simpul") {
+        posX[seret.i] = (sx - geserX) / skala;
+        posY[seret.i] = (sy - geserY) / skala;
+      } else {
+        geserX = seret.x0 + (sx - seret.sx);
+        geserY = seret.y0 + (sy - seret.sy);
+      }
+      perluGambar = true;
+      return;
+    }
+
+    if (sx < 0 || sy < 0 || sx > r.width || sy > r.height) return;
+    const i = simpulDi(sx, sy);
+    if (i !== sorot) {
+      sorot = i;
+      kanvas.style.cursor = i === null ? "grab" : "pointer";
+      perluGambar = true;
+    }
+    tampilkanTooltip(i, sx, sy);
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (seret && !seret.geser && seret.jenis === "simpul") pilihSimpul(seret.i);
+    if (seret && !seret.geser && seret.jenis === "panggung") pilihSimpul(null);
+    seret = null;
+  });
+
+  kanvas.addEventListener("wheel", (ev) => {
+    ev.preventDefault();
+    const r = kanvas.getBoundingClientRect();
+    const sx = ev.clientX - r.left;
+    const sy = ev.clientY - r.top;
+    const faktor = Math.exp(-ev.deltaY * 0.0016);
+    const baru = Math.max(0.08, Math.min(6, skala * faktor));
+    /* jangkar zoom di posisi kursor, bukan di tengah kanvas */
+    geserX = sx - ((sx - geserX) / skala) * baru;
+    geserY = sy - ((sy - geserY) / skala) * baru;
+    skala = baru;
+    perluGambar = true;
+  }, { passive: false });
+
+  const tooltip = el("gx-tip");
+  function tampilkanTooltip(i, sx, sy) {
+    if (i === null) {
+      tooltip.style.display = "none";
+      return;
+    }
+    tooltip.style.display = "block";
+    tooltip.style.left = `${sx + 14}px`;
+    tooltip.style.top = `${sy + 14}px`;
+    tooltip.innerHTML =
+      `<b>${esc(nodes[i].label)}</b><br>${esc(nodes[i].group)} · ${derajat[i]} tautan`;
+  }
+
+  /* --------------------------------------------------------- panel & kontrol */
+
+  function pilihSimpul(i) {
+    pilih = i;
+    perluGambar = true;
+    const isi = el("gx-info");
+
+    if (i === null) {
+      isi.innerHTML = '<span class="gx-kosong">Klik sebuah simpul untuk memeriksanya</span>';
+      return;
+    }
+
+    const d = nodes[i];
+    const daftar = [...tetanggaSet[i]]
+      .sort((a, b) => derajat[b] - derajat[a])
+      .map((j) => {
+        const rel = tautan.find(
+          (e) =>
+            (idx.get(e.source) === i && idx.get(e.target) === j) ||
+            (idx.get(e.target) === i && idx.get(e.source) === j),
+        );
+        return `<span class="gx-tetangga" style="border-left-color:${warnaSimpul(j)}" data-i="${j}">
+          ${esc(nodes[j].label)}<em>${esc(rel?.kind ?? "terhubung")}</em></span>`;
+      })
+      .join("");
+
+    isi.innerHTML = `
+      <div class="gx-judul-simpul">
+        <span class="gx-titik" style="background:${warnaSimpul(i)}"></span>${esc(d.label)}
+      </div>
+      <div class="gx-baris"><span>Entitas</span><b>${esc(d.group)}</b></div>
+      <div class="gx-baris"><span>Komunitas</span><b>#${komunitas[i]}</b></div>
+      <div class="gx-baris"><span>Tautan</span><b>${derajat[i]}</b></div>
+      ${d.hint ? `<div class="gx-baris"><span>Catatan</span><b>${esc(d.hint)}</b></div>` : ""}
+      ${daftar ? `<div class="gx-sub">Tetangga (${tetanggaSet[i].size})</div><div class="gx-daftar">${daftar}</div>` : ""}
+    `;
+
+    isi.querySelectorAll(".gx-tetangga").forEach((n) =>
+      n.addEventListener("click", () => sorotiSimpul(Number(n.dataset.i))),
+    );
+  }
+
+  /** Meluncur halus ke satu simpul — lompatan mendadak bikin kehilangan konteks. */
+  function sorotiSimpul(i) {
+    const r = kanvas.getBoundingClientRect();
+    const skalaTujuan = Math.max(skala, 1.1);
+    const xTujuan = r.width / 2 - posX[i] * skalaTujuan;
+    const yTujuan = r.height / 2 - posY[i] * skalaTujuan;
+    const s0 = skala, x0 = geserX, y0 = geserY;
+    const mulai = performance.now();
+
+    (function langkah(t) {
+      const p = Math.min((t - mulai) / 420, 1);
+      const e = 1 - Math.pow(1 - p, 3);
+      skala = s0 + (skalaTujuan - s0) * e;
+      geserX = x0 + (xTujuan - x0) * e;
+      geserY = y0 + (yTujuan - y0) * e;
+      perluGambar = true;
+      if (p < 1) requestAnimationFrame(langkah);
+    })(mulai);
+
+    pilihSimpul(i);
+  }
+
+  /* ------------------------------------------------------------- pencarian */
+
+  const cari = el("gx-cari");
+  const hasil = el("gx-hasil");
+
+  cari.addEventListener("input", () => {
+    const q = cari.value.trim().toLowerCase();
+    hasil.innerHTML = "";
+    if (!q) {
+      hasil.style.display = "none";
+      return;
+    }
+    const cocok = nodes
+      .map((d, i) => ({ d, i }))
+      .filter(({ d }) => d.label.toLowerCase().includes(q))
+      .sort((a, b) => derajat[b.i] - derajat[a.i])
+      .slice(0, 24);
+
+    if (!cocok.length) {
+      hasil.style.display = "block";
+      hasil.innerHTML = '<div class="gx-kosong" style="padding:6px">Tidak ada yang cocok</div>';
+      return;
+    }
+    hasil.style.display = "block";
+    hasil.innerHTML = cocok
+      .map(
+        ({ d, i }) =>
+          `<div class="gx-hasil-item" style="border-left-color:${warnaSimpul(i)}" data-i="${i}">
+             ${esc(d.label)}<em>${esc(d.group)}</em></div>`,
+      )
+      .join("");
+    hasil.querySelectorAll(".gx-hasil-item").forEach((n) =>
+      n.addEventListener("click", () => {
+        sorotiSimpul(Number(n.dataset.i));
+        hasil.style.display = "none";
+        cari.value = "";
+      }),
+    );
+  });
+
+  document.addEventListener("click", (ev) => {
+    if (!hasil.contains(ev.target) && ev.target !== cari) hasil.style.display = "none";
+  });
+
+  /* --------------------------------------------------------------- legenda */
+
+  const legenda = el("gx-legenda");
+  const semua = el("gx-semua");
+
+  function daftarKunci() {
+    const m = new Map();
+    for (let i = 0; i < nodes.length; i++) {
+      const k = kunciSimpul(i);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  }
+
+  function gambarLegenda() {
+    legenda.innerHTML = "";
+    for (const [k, n] of daftarKunci()) {
+      const nama = modusWarna === "komunitas" ? `Komunitas ${k}` : kelompok[k];
+      const baris = document.createElement("label");
+      baris.className = `gx-legenda-item${tersembunyi.has(k) ? " gx-redup" : ""}`;
+      baris.innerHTML = `
+        <input type="checkbox" class="gx-cb" ${tersembunyi.has(k) ? "" : "checked"}>
+        <span class="gx-titik" style="background:${PALET_KOMUNITAS[k % PALET_KOMUNITAS.length]}"></span>
+        <span class="gx-legenda-label">${esc(nama)}</span>
+        <span class="gx-legenda-n">${angka(n)}</span>`;
+      baris.querySelector("input").addEventListener("change", (ev) => {
+        if (ev.target.checked) {
+          tersembunyi.delete(k);
+          baris.classList.remove("gx-redup");
+        } else {
+          tersembunyi.add(k);
+          baris.classList.add("gx-redup");
+        }
+        perbaruiSemua();
+        perluGambar = true;
+      });
+      legenda.appendChild(baris);
+    }
+    perbaruiSemua();
+  }
+
+  function perbaruiSemua() {
+    const total = daftarKunci().length;
+    semua.checked = tersembunyi.size === 0;
+    semua.indeterminate = tersembunyi.size > 0 && tersembunyi.size < total;
+  }
+
+  semua.addEventListener("change", () => {
+    const sembunyikan = !semua.checked;
+    tersembunyi.clear();
+    if (sembunyikan) for (const [k] of daftarKunci()) tersembunyi.add(k);
+    gambarLegenda();
+    perluGambar = true;
+  });
+
+  el("gx-modus").addEventListener("click", (ev) => {
+    modusWarna = modusWarna === "komunitas" ? "entitas" : "komunitas";
+    tersembunyi.clear();
+    ev.currentTarget.textContent = modusWarna === "komunitas" ? "Warna: Komunitas" : "Warna: Entitas";
+    el("gx-legenda-judul").textContent = modusWarna === "komunitas" ? "Komunitas" : "Entitas";
+    gambarLegenda();
+    if (pilih !== null) pilihSimpul(pilih);
+    perluGambar = true;
+  });
+
+  el("gx-muat").addEventListener("click", muatkan);
+
+  const tombolHyper = el("gx-hyper");
+  if (!hyper.length) {
+    tombolHyper.style.display = "none";
+  } else {
+    tombolHyper.textContent = `Sorotan alur (${hyper.length})`;
+    tombolHyper.addEventListener("click", () => {
+      tampilHyper = !tampilHyper;
+      tombolHyper.classList.toggle("gx-btn-aktif", tampilHyper);
+      perluGambar = true;
+    });
+  }
+
+  /* ----------------------------------------------------------------- mulai */
+
+  window.addEventListener("resize", () => {
+    ukuranUlang();
+  });
+
+  el("gx-stats").textContent =
+    `${angka(nodes.length)} simpul · ${angka(tautan.length)} tautan · ${jumlahKomunitas} komunitas`;
+  if (DATA.judul) el("gx-judul").textContent = DATA.judul;
+
+  gambarLegenda();
+  pilihSimpul(null);
+  ukuranUlang();
+  muatkan();
+  putar();
+}
+
+/* <GRAPHIFY:DATA> */
+const DATA = {"judul":"Peta relasi master data — contoh","nodes":[{"id":"prn:SNU","label":"Sampoerna Niaga Utama","group":"PRINCIPAL","hint":"SNU"},{"id":"prn:KTG","label":"KT&G Indonesia","group":"PRINCIPAL","hint":"KTG"},{"id":"prn:OXV","label":"OXVA Indonesia","group":"PRINCIPAL","hint":"OXV"},{"id":"prn:VPR","label":"Vaporesso Nusantara","group":"PRINCIPAL","hint":"VPR"},{"id":"prn:DJR","label":"Djarum Trade Partner","group":"PRINCIPAL","hint":"DJR"},{"id":"prn:GGD","label":"Gudang Garam Distribusi","group":"PRINCIPAL","hint":"GGD"},{"id":"prn:TKI","label":"Tokai Lighter Indonesia","group":"PRINCIPAL","hint":"TKI"},{"id":"prn:BRI","label":"Beverage Ritel Indonesia","group":"PRINCIPAL","hint":"BRI"},{"id":"kat:111A","label":"POD SYSTEM","group":"KATEGORI","hint":"111A · MASTER CAT"},{"id":"kat:112A","label":"MOD KIT","group":"KATEGORI","hint":"112A · MASTER CAT"},{"id":"kat:121A","label":"LIQUID FREEBASE","group":"KATEGORI","hint":"121A · MASTER CAT"},{"id":"kat:122A","label":"CARTRIDGE CLOSE SYSTEM","group":"KATEGORI","hint":"122A · MASTER CAT"},{"id":"kat:131A","label":"COIL & OCC","group":"KATEGORI","hint":"131A · MASTER CAT"},{"id":"kat:132A","label":"BATERAI & CHARGER","group":"KATEGORI","hint":"132A · MASTER CAT"},{"id":"kat:141A","label":"SIGARET KRETEK MESIN","group":"KATEGORI","hint":"141A · MASTER CAT"},{"id":"kat:142A","label":"SIGARET PUTIH MESIN","group":"KATEGORI","hint":"142A · MASTER CAT"},{"id":"kat:151A","label":"HEATED TOBACCO","group":"KATEGORI","hint":"151A · MASTER CAT"},{"id":"kat:161A","label":"KOREK & AKSESORIS","group":"KATEGORI","hint":"161A · MASTER CAT"},{"id":"kat:171A","label":"MINUMAN SIAP SAJI","group":"KATEGORI","hint":"171A · MASTER CAT"},{"id":"kat:181A","label":"SNACK & CONFECTIONERY","group":"KATEGORI","hint":"181A · MASTER CAT"},{"id":"tok:JBTK01","label":"Kemang","group":"TOKO","hint":"JBTK01 · JBTK"},{"id":"tok:JBTK02","label":"Tebet","group":"TOKO","hint":"JBTK02 · JBTK"},{"id":"tok:JBTK03","label":"Kelapa Gading","group":"TOKO","hint":"JBTK03 · JBTK"},{"id":"tok:JBTK04","label":"BSD Serpong","group":"TOKO","hint":"JBTK04 · JBTK"},{"id":"tok:JBTK05","label":"Bintaro","group":"TOKO","hint":"JBTK05 · JBTK"},{"id":"tok:JBTK06","label":"Cibubur","group":"TOKO","hint":"JBTK06 · JBTK"},{"id":"tok:BDG01","label":"Dago","group":"TOKO","hint":"BDG01 · BDG"},{"id":"tok:BDG02","label":"Riau","group":"TOKO","hint":"BDG02 · BDG"},{"id":"tok:BDG03","label":"Setiabudi","group":"TOKO","hint":"BDG03 · BDG"},{"id":"tok:BDG04","label":"Buah Batu","group":"TOKO","hint":"BDG04 · BDG"},{"id":"tok:SMG01","label":"Pandanaran","group":"TOKO","hint":"SMG01 · SMG"},{"id":"tok:SMG02","label":"Tembalang","group":"TOKO","hint":"SMG02 · SMG"},{"id":"tok:SMG03","label":"Banyumanik","group":"TOKO","hint":"SMG03 · SMG"},{"id":"tok:SBY01","label":"Gubeng","group":"TOKO","hint":"SBY01 · SBY"},{"id":"tok:SBY02","label":"Darmo","group":"TOKO","hint":"SBY02 · SBY"},{"id":"tok:SBY03","label":"Rungkut","group":"TOKO","hint":"SBY03 · SBY"},{"id":"tok:SBY04","label":"Manyar","group":"TOKO","hint":"SBY04 · SBY"},{"id":"tok:SRG01","label":"Solo Slamet Riyadi","group":"TOKO","hint":"SRG01 · SRG"},{"id":"tok:SRG02","label":"Jogja Malioboro","group":"TOKO","hint":"SRG02 · SRG"},{"id":"tok:SRG03","label":"Jogja Seturan","group":"TOKO","hint":"SRG03 · SRG"},{"id":"tok:BLI01","label":"Denpasar Renon","group":"TOKO","hint":"BLI01 · BLI"},{"id":"tok:BLI02","label":"Kuta","group":"TOKO","hint":"BLI02 · BLI"},{"id":"tok:BLI03","label":"Ubud","group":"TOKO","hint":"BLI03 · BLI"},{"id":"tok:BLI04","label":"Canggu","group":"TOKO","hint":"BLI04 · BLI"},{"id":"prd:1001","label":"POD A100","group":"PRODUK","hint":"PLU 112000"},{"id":"prd:1002","label":"BATERAI B101","group":"PRODUK","hint":"PLU 112001"},{"id":"prd:1003","label":"MINUMAN C102","group":"PRODUK","hint":"PLU 112002"},{"id":"prd:1004","label":"CARTRIDGE D103","group":"PRODUK","hint":"PLU 112003"},{"id":"prd:1005","label":"HEATED E104","group":"PRODUK","hint":"PLU 112004"},{"id":"prd:1006","label":"MOD F105","group":"PRODUK","hint":"PLU 112005"},{"id":"prd:1007","label":"SIGARET G106","group":"PRODUK","hint":"PLU 112006"},{"id":"prd:1008","label":"SNACK H107","group":"PRODUK","hint":"PLU 112007"},{"id":"prd:1009","label":"BATERAI I108","group":"PRODUK","hint":"PLU 112008"},{"id":"prd:1010","label":"MINUMAN J109","group":"PRODUK","hint":"PLU 112009"},{"id":"prd:1011","label":"CARTRIDGE K110","group":"PRODUK","hint":"PLU 112010"},{"id":"prd:1012","label":"HEATED L111","group":"PRODUK","hint":"PLU 112011"},{"id":"prd:1013","label":"MOD M112","group":"PRODUK","hint":"PLU 112012"},{"id":"prd:1014","label":"SIGARET N113","group":"PRODUK","hint":"PLU 112013"},{"id":"prd:1015","label":"SNACK O114","group":"PRODUK","hint":"PLU 112014"},{"id":"prd:1016","label":"COIL P115","group":"PRODUK","hint":"PLU 112015"},{"id":"prd:1017","label":"MINUMAN Q116","group":"PRODUK","hint":"PLU 112016"},{"id":"prd:1018","label":"CARTRIDGE R117","group":"PRODUK","hint":"PLU 112017"},{"id":"prd:1019","label":"HEATED S118","group":"PRODUK","hint":"PLU 112018"},{"id":"prd:1020","label":"MOD T119","group":"PRODUK","hint":"PLU 112019"},{"id":"prd:1021","label":"SIGARET U120","group":"PRODUK","hint":"PLU 112020"},{"id":"prd:1022","label":"SNACK V121","group":"PRODUK","hint":"PLU 112021"},{"id":"prd:1023","label":"COIL W122","group":"PRODUK","hint":"PLU 112022"},{"id":"prd:1024","label":"KOREK X123","group":"PRODUK","hint":"PLU 112023"},{"id":"prd:1025","label":"CARTRIDGE Y124","group":"PRODUK","hint":"PLU 112024"},{"id":"prd:1026","label":"HEATED Z125","group":"PRODUK","hint":"PLU 112025"},{"id":"prd:1027","label":"MOD A126","group":"PRODUK","hint":"PLU 112026"},{"id":"prd:1028","label":"SIGARET B127","group":"PRODUK","hint":"PLU 112027"},{"id":"prd:1029","label":"SNACK C128","group":"PRODUK","hint":"PLU 112028"},{"id":"prd:1030","label":"COIL D129","group":"PRODUK","hint":"PLU 112029"},{"id":"prd:1031","label":"KOREK E130","group":"PRODUK","hint":"PLU 112030"},{"id":"prd:1032","label":"LIQUID F131","group":"PRODUK","hint":"PLU 112031"},{"id":"prd:1033","label":"HEATED G132","group":"PRODUK","hint":"PLU 112032"},{"id":"prd:1034","label":"MOD H133","group":"PRODUK","hint":"PLU 112033"},{"id":"prd:1035","label":"SIGARET I134","group":"PRODUK","hint":"PLU 112034"},{"id":"prd:1036","label":"SNACK J135","group":"PRODUK","hint":"PLU 112035"},{"id":"prd:1037","label":"COIL K136","group":"PRODUK","hint":"PLU 112036"},{"id":"prd:1038","label":"KOREK L137","group":"PRODUK","hint":"PLU 112037"},{"id":"prd:1039","label":"LIQUID M138","group":"PRODUK","hint":"PLU 112038"},{"id":"prd:1040","label":"SIGARET N139","group":"PRODUK","hint":"PLU 112039"},{"id":"prd:1041","label":"MOD O140","group":"PRODUK","hint":"PLU 112040"},{"id":"prd:1042","label":"SIGARET P141","group":"PRODUK","hint":"PLU 112041"},{"id":"prd:1043","label":"SNACK Q142","group":"PRODUK","hint":"PLU 112042"},{"id":"prd:1044","label":"COIL R143","group":"PRODUK","hint":"PLU 112043"},{"id":"prd:1045","label":"KOREK S144","group":"PRODUK","hint":"PLU 112044"},{"id":"prd:1046","label":"LIQUID T145","group":"PRODUK","hint":"PLU 112045"},{"id":"prd:1047","label":"SIGARET U146","group":"PRODUK","hint":"PLU 112046"},{"id":"prd:1048","label":"POD V147","group":"PRODUK","hint":"PLU 112047"},{"id":"prd:1049","label":"SIGARET W148","group":"PRODUK","hint":"PLU 112048"},{"id":"prd:1050","label":"SNACK X149","group":"PRODUK","hint":"PLU 112049"},{"id":"prd:1051","label":"COIL Y150","group":"PRODUK","hint":"PLU 112050"},{"id":"prd:1052","label":"KOREK Z151","group":"PRODUK","hint":"PLU 112051"},{"id":"prd:1053","label":"LIQUID A152","group":"PRODUK","hint":"PLU 112052"},{"id":"prd:1054","label":"SIGARET B153","group":"PRODUK","hint":"PLU 112053"},{"id":"prd:1055","label":"POD C154","group":"PRODUK","hint":"PLU 112054"},{"id":"prd:1056","label":"BATERAI D155","group":"PRODUK","hint":"PLU 112055"},{"id":"prd:1057","label":"SNACK E156","group":"PRODUK","hint":"PLU 112056"},{"id":"prd:1058","label":"COIL F157","group":"PRODUK","hint":"PLU 112057"},{"id":"prd:1059","label":"KOREK G158","group":"PRODUK","hint":"PLU 112058"},{"id":"prd:1060","label":"LIQUID H159","group":"PRODUK","hint":"PLU 112059"},{"id":"prd:1061","label":"SIGARET I160","group":"PRODUK","hint":"PLU 112060"},{"id":"prd:1062","label":"POD J161","group":"PRODUK","hint":"PLU 112061"},{"id":"prd:1063","label":"BATERAI K162","group":"PRODUK","hint":"PLU 112062"},{"id":"prd:1064","label":"MINUMAN L163","group":"PRODUK","hint":"PLU 112063"},{"id":"prd:1065","label":"COIL M164","group":"PRODUK","hint":"PLU 112064"},{"id":"prd:1066","label":"KOREK N165","group":"PRODUK","hint":"PLU 112065"},{"id":"prd:1067","label":"LIQUID O166","group":"PRODUK","hint":"PLU 112066"},{"id":"prd:1068","label":"SIGARET P167","group":"PRODUK","hint":"PLU 112067"},{"id":"prd:1069","label":"POD Q168","group":"PRODUK","hint":"PLU 112068"},{"id":"prd:1070","label":"BATERAI R169","group":"PRODUK","hint":"PLU 112069"},{"id":"prd:1071","label":"MINUMAN S170","group":"PRODUK","hint":"PLU 112070"},{"id":"prd:1072","label":"CARTRIDGE T171","group":"PRODUK","hint":"PLU 112071"},{"id":"prd:1073","label":"KOREK U172","group":"PRODUK","hint":"PLU 112072"},{"id":"prd:1074","label":"LIQUID V173","group":"PRODUK","hint":"PLU 112073"},{"id":"prd:1075","label":"SIGARET W174","group":"PRODUK","hint":"PLU 112074"},{"id":"prd:1076","label":"POD X175","group":"PRODUK","hint":"PLU 112075"},{"id":"prd:1077","label":"BATERAI Y176","group":"PRODUK","hint":"PLU 112076"},{"id":"prd:1078","label":"MINUMAN Z177","group":"PRODUK","hint":"PLU 112077"},{"id":"prd:1079","label":"CARTRIDGE A178","group":"PRODUK","hint":"PLU 112078"},{"id":"prd:1080","label":"HEATED B179","group":"PRODUK","hint":"PLU 112079"},{"id":"prd:1081","label":"LIQUID C180","group":"PRODUK","hint":"PLU 112080"},{"id":"prd:1082","label":"SIGARET D181","group":"PRODUK","hint":"PLU 112081"},{"id":"prd:1083","label":"POD E182","group":"PRODUK","hint":"PLU 112082"},{"id":"prd:1084","label":"BATERAI F183","group":"PRODUK","hint":"PLU 112083"},{"id":"prd:1085","label":"MINUMAN G184","group":"PRODUK","hint":"PLU 112084"},{"id":"prd:1086","label":"CARTRIDGE H185","group":"PRODUK","hint":"PLU 112085"},{"id":"prd:1087","label":"HEATED I186","group":"PRODUK","hint":"PLU 112086"},{"id":"prd:1088","label":"MOD J187","group":"PRODUK","hint":"PLU 112087"},{"id":"prd:1089","label":"SIGARET K188","group":"PRODUK","hint":"PLU 112088"},{"id":"prd:1090","label":"POD L189","group":"PRODUK","hint":"PLU 112089"},{"id":"ktr:K001","label":"Sewa Display — Sampoerna","group":"KONTRAK","hint":"SPK/2026/001 · Sewa Display"},{"id":"ktr:K002","label":"Konsinyasi — KT&G","group":"KONTRAK","hint":"SPK/2026/002 · Konsinyasi"},{"id":"ktr:K003","label":"Branding Toko — OXVA","group":"KONTRAK","hint":"SPK/2026/003 · Branding Toko"},{"id":"ktr:K004","label":"Program Promosi — Vaporesso","group":"KONTRAK","hint":"SPK/2026/004 · Program Promosi"},{"id":"ktr:K005","label":"Sewa Display — Djarum","group":"KONTRAK","hint":"SPK/2026/005 · Sewa Display"},{"id":"ktr:K006","label":"Konsinyasi — Gudang","group":"KONTRAK","hint":"SPK/2026/006 · Konsinyasi"},{"id":"ktr:K007","label":"Branding Toko — Tokai","group":"KONTRAK","hint":"SPK/2026/007 · Branding Toko"},{"id":"ktr:K008","label":"Program Promosi — Beverage","group":"KONTRAK","hint":"SPK/2026/008 · Program Promosi"},{"id":"ktr:K009","label":"Sewa Display — Sampoerna","group":"KONTRAK","hint":"SPK/2026/009 · Sewa Display"},{"id":"ktr:K010","label":"Konsinyasi — KT&G","group":"KONTRAK","hint":"SPK/2026/010 · Konsinyasi"},{"id":"ktr:K011","label":"Branding Toko — OXVA","group":"KONTRAK","hint":"SPK/2026/011 · Branding Toko"},{"id":"ktr:K012","label":"Program Promosi — Vaporesso","group":"KONTRAK","hint":"SPK/2026/012 · Program Promosi"},{"id":"ktr:K013","label":"Sewa Display — Djarum","group":"KONTRAK","hint":"SPK/2026/013 · Sewa Display"},{"id":"ktr:K014","label":"Konsinyasi — Gudang","group":"KONTRAK","hint":"SPK/2026/014 · Konsinyasi"},{"id":"ast:A001","label":"Chiller #1","group":"ASET","hint":"Chiller"},{"id":"ast:A002","label":"Akrilik Display #2","group":"ASET","hint":"Akrilik Display"},{"id":"ast:A003","label":"Lollipop Sign #3","group":"ASET","hint":"Lollipop Sign"},{"id":"ast:A004","label":"Header Rak #4","group":"ASET","hint":"Header Rak"},{"id":"ast:A005","label":"Lightbox #5","group":"ASET","hint":"Lightbox"},{"id":"ast:A006","label":"Tester Stand #6","group":"ASET","hint":"Tester Stand"},{"id":"ast:A007","label":"Chiller #7","group":"ASET","hint":"Chiller"},{"id":"ast:A008","label":"Akrilik Display #8","group":"ASET","hint":"Akrilik Display"},{"id":"ast:A009","label":"Lollipop Sign #9","group":"ASET","hint":"Lollipop Sign"},{"id":"ast:A010","label":"Header Rak #10","group":"ASET","hint":"Header Rak"},{"id":"ast:A011","label":"Lightbox #11","group":"ASET","hint":"Lightbox"},{"id":"ast:A012","label":"Tester Stand #12","group":"ASET","hint":"Tester Stand"},{"id":"ast:A013","label":"Chiller #13","group":"ASET","hint":"Chiller"},{"id":"ast:A014","label":"Akrilik Display #14","group":"ASET","hint":"Akrilik Display"},{"id":"ast:A015","label":"Lollipop Sign #15","group":"ASET","hint":"Lollipop Sign"},{"id":"ast:A016","label":"Header Rak #16","group":"ASET","hint":"Header Rak"},{"id":"ast:A017","label":"Lightbox #17","group":"ASET","hint":"Lightbox"},{"id":"ast:A018","label":"Tester Stand #18","group":"ASET","hint":"Tester Stand"},{"id":"ast:A019","label":"Chiller #19","group":"ASET","hint":"Chiller"},{"id":"ast:A020","label":"Akrilik Display #20","group":"ASET","hint":"Akrilik Display"},{"id":"ast:A021","label":"Lollipop Sign #21","group":"ASET","hint":"Lollipop Sign"},{"id":"ast:A022","label":"Header Rak #22","group":"ASET","hint":"Header Rak"},{"id":"ast:A023","label":"Lightbox #23","group":"ASET","hint":"Lightbox"},{"id":"ast:A024","label":"Tester Stand #24","group":"ASET","hint":"Tester Stand"},{"id":"ast:A025","label":"Chiller #25","group":"ASET","hint":"Chiller"},{"id":"ast:A026","label":"Akrilik Display #26","group":"ASET","hint":"Akrilik Display"},{"id":"ast:A027","label":"Lollipop Sign #27","group":"ASET","hint":"Lollipop Sign"},{"id":"ast:A028","label":"Header Rak #28","group":"ASET","hint":"Header Rak"},{"id":"ast:A029","label":"Lightbox #29","group":"ASET","hint":"Lightbox"},{"id":"ast:A030","label":"Tester Stand #30","group":"ASET","hint":"Tester Stand"},{"id":"ast:A031","label":"Chiller #31","group":"ASET","hint":"Chiller"},{"id":"ast:A032","label":"Akrilik Display #32","group":"ASET","hint":"Akrilik Display"},{"id":"ast:A033","label":"Lollipop Sign #33","group":"ASET","hint":"Lollipop Sign"},{"id":"ast:A034","label":"Header Rak #34","group":"ASET","hint":"Header Rak"},{"id":"pro:P001","label":"Promo Beli 2 Gratis 1 Sampoerna","group":"PROMOSI","hint":"PRM-2026-001"},{"id":"pro:P002","label":"Promo Diskon Bundling KT&G","group":"PROMOSI","hint":"PRM-2026-002"},{"id":"pro:P003","label":"Promo Cashback Member OXVA","group":"PROMOSI","hint":"PRM-2026-003"},{"id":"pro:P004","label":"Promo Free Gift Vaporesso","group":"PROMOSI","hint":"PRM-2026-004"},{"id":"pro:P005","label":"Promo Beli 2 Gratis 1 Djarum","group":"PROMOSI","hint":"PRM-2026-005"},{"id":"pro:P006","label":"Promo Diskon Bundling Gudang","group":"PROMOSI","hint":"PRM-2026-006"},{"id":"pro:P007","label":"Promo Cashback Member Tokai","group":"PROMOSI","hint":"PRM-2026-007"},{"id":"pro:P008","label":"Promo Free Gift Beverage","group":"PROMOSI","hint":"PRM-2026-008"},{"id":"pro:P009","label":"Promo Beli 2 Gratis 1 Sampoerna","group":"PROMOSI","hint":"PRM-2026-009"}],"edges":[{"source":"prd:1001","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1001","target":"kat:111A","kind":"berkategori"},{"source":"prd:1002","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1002","target":"kat:132A","kind":"berkategori"},{"source":"prd:1003","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1003","target":"kat:171A","kind":"berkategori"},{"source":"prd:1004","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1004","target":"kat:122A","kind":"berkategori"},{"source":"prd:1005","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1005","target":"kat:151A","kind":"berkategori"},{"source":"prd:1006","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1006","target":"kat:112A","kind":"berkategori"},{"source":"prd:1007","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1007","target":"kat:141A","kind":"berkategori"},{"source":"prd:1008","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1008","target":"kat:181A","kind":"berkategori"},{"source":"prd:1009","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1009","target":"kat:132A","kind":"berkategori"},{"source":"prd:1010","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1010","target":"kat:171A","kind":"berkategori"},{"source":"prd:1011","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1011","target":"kat:122A","kind":"berkategori"},{"source":"prd:1012","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1012","target":"kat:151A","kind":"berkategori"},{"source":"prd:1013","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1013","target":"kat:112A","kind":"berkategori"},{"source":"prd:1014","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1014","target":"kat:141A","kind":"berkategori"},{"source":"prd:1015","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1015","target":"kat:181A","kind":"berkategori"},{"source":"prd:1016","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1016","target":"kat:131A","kind":"berkategori"},{"source":"prd:1017","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1017","target":"kat:171A","kind":"berkategori"},{"source":"prd:1018","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1018","target":"kat:122A","kind":"berkategori"},{"source":"prd:1019","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1019","target":"kat:151A","kind":"berkategori"},{"source":"prd:1020","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1020","target":"kat:112A","kind":"berkategori"},{"source":"prd:1021","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1021","target":"kat:141A","kind":"berkategori"},{"source":"prd:1022","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1022","target":"kat:181A","kind":"berkategori"},{"source":"prd:1023","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1023","target":"kat:131A","kind":"berkategori"},{"source":"prd:1024","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1024","target":"kat:161A","kind":"berkategori"},{"source":"prd:1025","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1025","target":"kat:122A","kind":"berkategori"},{"source":"prd:1026","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1026","target":"kat:151A","kind":"berkategori"},{"source":"prd:1027","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1027","target":"kat:112A","kind":"berkategori"},{"source":"prd:1028","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1028","target":"kat:141A","kind":"berkategori"},{"source":"prd:1029","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1029","target":"kat:181A","kind":"berkategori"},{"source":"prd:1030","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1030","target":"kat:131A","kind":"berkategori"},{"source":"prd:1031","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1031","target":"kat:161A","kind":"berkategori"},{"source":"prd:1032","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1032","target":"kat:121A","kind":"berkategori"},{"source":"prd:1033","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1033","target":"kat:151A","kind":"berkategori"},{"source":"prd:1034","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1034","target":"kat:112A","kind":"berkategori"},{"source":"prd:1035","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1035","target":"kat:141A","kind":"berkategori"},{"source":"prd:1036","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1036","target":"kat:181A","kind":"berkategori"},{"source":"prd:1037","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1037","target":"kat:131A","kind":"berkategori"},{"source":"prd:1038","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1038","target":"kat:161A","kind":"berkategori"},{"source":"prd:1039","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1039","target":"kat:121A","kind":"berkategori"},{"source":"prd:1040","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1040","target":"kat:142A","kind":"berkategori"},{"source":"prd:1041","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1041","target":"kat:112A","kind":"berkategori"},{"source":"prd:1042","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1042","target":"kat:141A","kind":"berkategori"},{"source":"prd:1043","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1043","target":"kat:181A","kind":"berkategori"},{"source":"prd:1044","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1044","target":"kat:131A","kind":"berkategori"},{"source":"prd:1045","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1045","target":"kat:161A","kind":"berkategori"},{"source":"prd:1046","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1046","target":"kat:121A","kind":"berkategori"},{"source":"prd:1047","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1047","target":"kat:142A","kind":"berkategori"},{"source":"prd:1048","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1048","target":"kat:111A","kind":"berkategori"},{"source":"prd:1049","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1049","target":"kat:141A","kind":"berkategori"},{"source":"prd:1050","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1050","target":"kat:181A","kind":"berkategori"},{"source":"prd:1051","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1051","target":"kat:131A","kind":"berkategori"},{"source":"prd:1052","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1052","target":"kat:161A","kind":"berkategori"},{"source":"prd:1053","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1053","target":"kat:121A","kind":"berkategori"},{"source":"prd:1054","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1054","target":"kat:142A","kind":"berkategori"},{"source":"prd:1055","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1055","target":"kat:111A","kind":"berkategori"},{"source":"prd:1056","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1056","target":"kat:132A","kind":"berkategori"},{"source":"prd:1057","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1057","target":"kat:181A","kind":"berkategori"},{"source":"prd:1058","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1058","target":"kat:131A","kind":"berkategori"},{"source":"prd:1059","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1059","target":"kat:161A","kind":"berkategori"},{"source":"prd:1060","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1060","target":"kat:121A","kind":"berkategori"},{"source":"prd:1061","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1061","target":"kat:142A","kind":"berkategori"},{"source":"prd:1062","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1062","target":"kat:111A","kind":"berkategori"},{"source":"prd:1063","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1063","target":"kat:132A","kind":"berkategori"},{"source":"prd:1064","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1064","target":"kat:171A","kind":"berkategori"},{"source":"prd:1065","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1065","target":"kat:131A","kind":"berkategori"},{"source":"prd:1066","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1066","target":"kat:161A","kind":"berkategori"},{"source":"prd:1067","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1067","target":"kat:121A","kind":"berkategori"},{"source":"prd:1068","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1068","target":"kat:142A","kind":"berkategori"},{"source":"prd:1069","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1069","target":"kat:111A","kind":"berkategori"},{"source":"prd:1070","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1070","target":"kat:132A","kind":"berkategori"},{"source":"prd:1071","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1071","target":"kat:171A","kind":"berkategori"},{"source":"prd:1072","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1072","target":"kat:122A","kind":"berkategori"},{"source":"prd:1073","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1073","target":"kat:161A","kind":"berkategori"},{"source":"prd:1074","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1074","target":"kat:121A","kind":"berkategori"},{"source":"prd:1075","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1075","target":"kat:142A","kind":"berkategori"},{"source":"prd:1076","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1076","target":"kat:111A","kind":"berkategori"},{"source":"prd:1077","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1077","target":"kat:132A","kind":"berkategori"},{"source":"prd:1078","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1078","target":"kat:171A","kind":"berkategori"},{"source":"prd:1079","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1079","target":"kat:122A","kind":"berkategori"},{"source":"prd:1080","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1080","target":"kat:151A","kind":"berkategori"},{"source":"prd:1081","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1081","target":"kat:121A","kind":"berkategori"},{"source":"prd:1082","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1082","target":"kat:142A","kind":"berkategori"},{"source":"prd:1083","target":"prn:OXV","kind":"dipasok oleh"},{"source":"prd:1083","target":"kat:111A","kind":"berkategori"},{"source":"prd:1084","target":"prn:VPR","kind":"dipasok oleh"},{"source":"prd:1084","target":"kat:132A","kind":"berkategori"},{"source":"prd:1085","target":"prn:DJR","kind":"dipasok oleh"},{"source":"prd:1085","target":"kat:171A","kind":"berkategori"},{"source":"prd:1086","target":"prn:GGD","kind":"dipasok oleh"},{"source":"prd:1086","target":"kat:122A","kind":"berkategori"},{"source":"prd:1087","target":"prn:TKI","kind":"dipasok oleh"},{"source":"prd:1087","target":"kat:151A","kind":"berkategori"},{"source":"prd:1088","target":"prn:BRI","kind":"dipasok oleh"},{"source":"prd:1088","target":"kat:112A","kind":"berkategori"},{"source":"prd:1089","target":"prn:SNU","kind":"dipasok oleh"},{"source":"prd:1089","target":"kat:142A","kind":"berkategori"},{"source":"prd:1090","target":"prn:KTG","kind":"dipasok oleh"},{"source":"prd:1090","target":"kat:111A","kind":"berkategori"},{"source":"ktr:K001","target":"prn:SNU","kind":"dengan principal"},{"source":"ktr:K001","target":"tok:JBTK01","kind":"mencakup toko"},{"source":"ktr:K001","target":"tok:JBTK06","kind":"mencakup toko"},{"source":"ktr:K001","target":"tok:SMG01","kind":"mencakup toko"},{"source":"ktr:K001","target":"tok:SBY03","kind":"mencakup toko"},{"source":"ktr:K001","target":"tok:BLI01","kind":"mencakup toko"},{"source":"ktr:K002","target":"prn:KTG","kind":"dengan principal"},{"source":"ktr:K002","target":"tok:JBTK03","kind":"mencakup toko"},{"source":"ktr:K002","target":"tok:BDG02","kind":"mencakup toko"},{"source":"ktr:K002","target":"tok:SMG03","kind":"mencakup toko"},{"source":"ktr:K002","target":"tok:SRG01","kind":"mencakup toko"},{"source":"ktr:K002","target":"tok:BLI03","kind":"mencakup toko"},{"source":"ktr:K003","target":"prn:OXV","kind":"dengan principal"},{"source":"ktr:K003","target":"tok:JBTK05","kind":"mencakup toko"},{"source":"ktr:K003","target":"tok:BDG04","kind":"mencakup toko"},{"source":"ktr:K003","target":"tok:SBY02","kind":"mencakup toko"},{"source":"ktr:K003","target":"tok:SRG03","kind":"mencakup toko"},{"source":"ktr:K004","target":"prn:VPR","kind":"dengan principal"},{"source":"ktr:K004","target":"tok:JBTK02","kind":"mencakup toko"},{"source":"ktr:K004","target":"tok:BDG01","kind":"mencakup toko"},{"source":"ktr:K004","target":"tok:SMG02","kind":"mencakup toko"},{"source":"ktr:K004","target":"tok:SBY04","kind":"mencakup toko"},{"source":"ktr:K004","target":"tok:BLI02","kind":"mencakup toko"},{"source":"ktr:K005","target":"prn:DJR","kind":"dengan principal"},{"source":"ktr:K005","target":"tok:JBTK04","kind":"mencakup toko"},{"source":"ktr:K005","target":"tok:BDG03","kind":"mencakup toko"},{"source":"ktr:K005","target":"tok:SBY01","kind":"mencakup toko"},{"source":"ktr:K005","target":"tok:SRG02","kind":"mencakup toko"},{"source":"ktr:K005","target":"tok:BLI04","kind":"mencakup toko"},{"source":"ktr:K006","target":"prn:GGD","kind":"dengan principal"},{"source":"ktr:K006","target":"tok:JBTK01","kind":"mencakup toko"},{"source":"ktr:K006","target":"tok:JBTK06","kind":"mencakup toko"},{"source":"ktr:K006","target":"tok:SMG01","kind":"mencakup toko"},{"source":"ktr:K006","target":"tok:SBY03","kind":"mencakup toko"},{"source":"ktr:K006","target":"tok:BLI01","kind":"mencakup toko"},{"source":"ktr:K007","target":"prn:TKI","kind":"dengan principal"},{"source":"ktr:K007","target":"tok:JBTK03","kind":"mencakup toko"},{"source":"ktr:K007","target":"tok:BDG02","kind":"mencakup toko"},{"source":"ktr:K007","target":"tok:SMG03","kind":"mencakup toko"},{"source":"ktr:K007","target":"tok:SRG01","kind":"mencakup toko"},{"source":"ktr:K007","target":"tok:BLI03","kind":"mencakup toko"},{"source":"ktr:K008","target":"prn:BRI","kind":"dengan principal"},{"source":"ktr:K008","target":"tok:JBTK05","kind":"mencakup toko"},{"source":"ktr:K008","target":"tok:BDG04","kind":"mencakup toko"},{"source":"ktr:K008","target":"tok:SBY02","kind":"mencakup toko"},{"source":"ktr:K008","target":"tok:SRG03","kind":"mencakup toko"},{"source":"ktr:K009","target":"prn:SNU","kind":"dengan principal"},{"source":"ktr:K009","target":"tok:JBTK02","kind":"mencakup toko"},{"source":"ktr:K009","target":"tok:BDG01","kind":"mencakup toko"},{"source":"ktr:K009","target":"tok:SMG02","kind":"mencakup toko"},{"source":"ktr:K009","target":"tok:SBY04","kind":"mencakup toko"},{"source":"ktr:K009","target":"tok:BLI02","kind":"mencakup toko"},{"source":"ktr:K010","target":"prn:KTG","kind":"dengan principal"},{"source":"ktr:K010","target":"tok:JBTK04","kind":"mencakup toko"},{"source":"ktr:K010","target":"tok:BDG03","kind":"mencakup toko"},{"source":"ktr:K010","target":"tok:SBY01","kind":"mencakup toko"},{"source":"ktr:K010","target":"tok:SRG02","kind":"mencakup toko"},{"source":"ktr:K010","target":"tok:BLI04","kind":"mencakup toko"},{"source":"ktr:K011","target":"prn:OXV","kind":"dengan principal"},{"source":"ktr:K011","target":"tok:JBTK01","kind":"mencakup toko"},{"source":"ktr:K011","target":"tok:JBTK06","kind":"mencakup toko"},{"source":"ktr:K011","target":"tok:SMG01","kind":"mencakup toko"},{"source":"ktr:K011","target":"tok:SBY03","kind":"mencakup toko"},{"source":"ktr:K011","target":"tok:BLI01","kind":"mencakup toko"},{"source":"ktr:K012","target":"prn:VPR","kind":"dengan principal"},{"source":"ktr:K012","target":"tok:JBTK03","kind":"mencakup toko"},{"source":"ktr:K012","target":"tok:BDG02","kind":"mencakup toko"},{"source":"ktr:K012","target":"tok:SMG03","kind":"mencakup toko"},{"source":"ktr:K012","target":"tok:SRG01","kind":"mencakup toko"},{"source":"ktr:K012","target":"tok:BLI03","kind":"mencakup toko"},{"source":"ktr:K013","target":"prn:DJR","kind":"dengan principal"},{"source":"ktr:K013","target":"tok:JBTK05","kind":"mencakup toko"},{"source":"ktr:K013","target":"tok:BDG04","kind":"mencakup toko"},{"source":"ktr:K013","target":"tok:SBY02","kind":"mencakup toko"},{"source":"ktr:K013","target":"tok:SRG03","kind":"mencakup toko"},{"source":"ktr:K014","target":"prn:GGD","kind":"dengan principal"},{"source":"ktr:K014","target":"tok:JBTK02","kind":"mencakup toko"},{"source":"ktr:K014","target":"tok:BDG01","kind":"mencakup toko"},{"source":"ktr:K014","target":"tok:SMG02","kind":"mencakup toko"},{"source":"ktr:K014","target":"tok:SBY04","kind":"mencakup toko"},{"source":"ktr:K014","target":"tok:BLI02","kind":"mencakup toko"},{"source":"ast:A001","target":"tok:JBTK01","kind":"terpasang di"},{"source":"ast:A001","target":"prn:SNU","kind":"milik principal"},{"source":"ast:A001","target":"ktr:K001","kind":"dari kontrak"},{"source":"ast:A002","target":"tok:BDG02","kind":"terpasang di"},{"source":"ast:A002","target":"prn:KTG","kind":"milik principal"},{"source":"ast:A003","target":"tok:SBY02","kind":"terpasang di"},{"source":"ast:A003","target":"prn:OXV","kind":"milik principal"},{"source":"ast:A004","target":"tok:BLI02","kind":"terpasang di"},{"source":"ast:A004","target":"prn:VPR","kind":"milik principal"},{"source":"ast:A004","target":"ktr:K004","kind":"dari kontrak"},{"source":"ast:A005","target":"tok:JBTK05","kind":"terpasang di"},{"source":"ast:A005","target":"prn:DJR","kind":"milik principal"},{"source":"ast:A006","target":"tok:SMG02","kind":"terpasang di"},{"source":"ast:A006","target":"prn:GGD","kind":"milik principal"},{"source":"ast:A007","target":"tok:SRG02","kind":"terpasang di"},{"source":"ast:A007","target":"prn:TKI","kind":"milik principal"},{"source":"ast:A007","target":"ktr:K007","kind":"dari kontrak"},{"source":"ast:A008","target":"tok:JBTK02","kind":"terpasang di"},{"source":"ast:A008","target":"prn:BRI","kind":"milik principal"},{"source":"ast:A009","target":"tok:BDG03","kind":"terpasang di"},{"source":"ast:A009","target":"prn:SNU","kind":"milik principal"},{"source":"ast:A010","target":"tok:SBY03","kind":"terpasang di"},{"source":"ast:A010","target":"prn:KTG","kind":"milik principal"},{"source":"ast:A010","target":"ktr:K010","kind":"dari kontrak"},{"source":"ast:A011","target":"tok:BLI03","kind":"terpasang di"},{"source":"ast:A011","target":"prn:OXV","kind":"milik principal"},{"source":"ast:A012","target":"tok:JBTK06","kind":"terpasang di"},{"source":"ast:A012","target":"prn:VPR","kind":"milik principal"},{"source":"ast:A013","target":"tok:SMG03","kind":"terpasang di"},{"source":"ast:A013","target":"prn:DJR","kind":"milik principal"},{"source":"ast:A013","target":"ktr:K013","kind":"dari kontrak"},{"source":"ast:A014","target":"tok:SRG03","kind":"terpasang di"},{"source":"ast:A014","target":"prn:GGD","kind":"milik principal"},{"source":"ast:A015","target":"tok:JBTK03","kind":"terpasang di"},{"source":"ast:A015","target":"prn:TKI","kind":"milik principal"},{"source":"ast:A016","target":"tok:BDG04","kind":"terpasang di"},{"source":"ast:A016","target":"prn:BRI","kind":"milik principal"},{"source":"ast:A016","target":"ktr:K002","kind":"dari kontrak"},{"source":"ast:A017","target":"tok:SBY04","kind":"terpasang di"},{"source":"ast:A017","target":"prn:SNU","kind":"milik principal"},{"source":"ast:A018","target":"tok:BLI04","kind":"terpasang di"},{"source":"ast:A018","target":"prn:KTG","kind":"milik principal"},{"source":"ast:A019","target":"tok:BDG01","kind":"terpasang di"},{"source":"ast:A019","target":"prn:OXV","kind":"milik principal"},{"source":"ast:A019","target":"ktr:K005","kind":"dari kontrak"},{"source":"ast:A020","target":"tok:SBY01","kind":"terpasang di"},{"source":"ast:A020","target":"prn:VPR","kind":"milik principal"},{"source":"ast:A021","target":"tok:BLI01","kind":"terpasang di"},{"source":"ast:A021","target":"prn:DJR","kind":"milik principal"},{"source":"ast:A022","target":"tok:JBTK04","kind":"terpasang di"},{"source":"ast:A022","target":"prn:GGD","kind":"milik principal"},{"source":"ast:A022","target":"ktr:K008","kind":"dari kontrak"},{"source":"ast:A023","target":"tok:SMG01","kind":"terpasang di"},{"source":"ast:A023","target":"prn:TKI","kind":"milik principal"},{"source":"ast:A024","target":"tok:SRG01","kind":"terpasang di"},{"source":"ast:A024","target":"prn:BRI","kind":"milik principal"},{"source":"ast:A025","target":"tok:JBTK01","kind":"terpasang di"},{"source":"ast:A025","target":"prn:SNU","kind":"milik principal"},{"source":"ast:A025","target":"ktr:K011","kind":"dari kontrak"},{"source":"ast:A026","target":"tok:BDG02","kind":"terpasang di"},{"source":"ast:A026","target":"prn:KTG","kind":"milik principal"},{"source":"ast:A027","target":"tok:SBY02","kind":"terpasang di"},{"source":"ast:A027","target":"prn:OXV","kind":"milik principal"},{"source":"ast:A028","target":"tok:BLI02","kind":"terpasang di"},{"source":"ast:A028","target":"prn:VPR","kind":"milik principal"},{"source":"ast:A028","target":"ktr:K014","kind":"dari kontrak"},{"source":"ast:A029","target":"tok:JBTK05","kind":"terpasang di"},{"source":"ast:A029","target":"prn:DJR","kind":"milik principal"},{"source":"ast:A030","target":"tok:SMG02","kind":"terpasang di"},{"source":"ast:A030","target":"prn:GGD","kind":"milik principal"},{"source":"ast:A031","target":"tok:SRG02","kind":"terpasang di"},{"source":"ast:A031","target":"prn:TKI","kind":"milik principal"},{"source":"ast:A031","target":"ktr:K003","kind":"dari kontrak"},{"source":"ast:A032","target":"tok:JBTK02","kind":"terpasang di"},{"source":"ast:A032","target":"prn:BRI","kind":"milik principal"},{"source":"ast:A033","target":"tok:BDG03","kind":"terpasang di"},{"source":"ast:A033","target":"prn:SNU","kind":"milik principal"},{"source":"ast:A034","target":"tok:SBY03","kind":"terpasang di"},{"source":"ast:A034","target":"prn:KTG","kind":"milik principal"},{"source":"ast:A034","target":"ktr:K006","kind":"dari kontrak"},{"source":"pro:P001","target":"prn:SNU","kind":"dengan principal"},{"source":"pro:P001","target":"prd:1001","kind":"berisi PLU"},{"source":"pro:P001","target":"prd:1009","kind":"berisi PLU"},{"source":"pro:P001","target":"prd:1017","kind":"berisi PLU"},{"source":"pro:P001","target":"prd:1025","kind":"berisi PLU"},{"source":"pro:P001","target":"prd:1033","kind":"berisi PLU"},{"source":"pro:P002","target":"prn:KTG","kind":"dengan principal"},{"source":"pro:P003","target":"prn:OXV","kind":"dengan principal"},{"source":"pro:P004","target":"prn:VPR","kind":"dengan principal"},{"source":"pro:P005","target":"prn:DJR","kind":"dengan principal"},{"source":"pro:P005","target":"prd:1005","kind":"berisi PLU"},{"source":"pro:P005","target":"prd:1013","kind":"berisi PLU"},{"source":"pro:P005","target":"prd:1021","kind":"berisi PLU"},{"source":"pro:P005","target":"prd:1029","kind":"berisi PLU"},{"source":"pro:P005","target":"prd:1037","kind":"berisi PLU"},{"source":"pro:P006","target":"prn:GGD","kind":"dengan principal"},{"source":"pro:P007","target":"prn:TKI","kind":"dengan principal"},{"source":"pro:P008","target":"prn:BRI","kind":"dengan principal"},{"source":"pro:P009","target":"prn:SNU","kind":"dengan principal"},{"source":"pro:P009","target":"prd:1001","kind":"berisi PLU"},{"source":"pro:P009","target":"prd:1009","kind":"berisi PLU"},{"source":"pro:P009","target":"prd:1017","kind":"berisi PLU"},{"source":"pro:P009","target":"prd:1025","kind":"berisi PLU"},{"source":"pro:P009","target":"prd:1033","kind":"berisi PLU"}],"hyperedges":[{"id":"alur-sku-baru","label":"Alur pengajuan SKU baru","nodes":["prn:OXV","kat:111A","kat:131A","prd:1003","prd:1033","prd:1063"]},{"id":"alur-kontrak-display","label":"Alur kontrak display","nodes":["ktr:K001","ktr:K005","prn:SNU","tok:JBTK01","tok:JBTK02","tok:JBTK03","tok:JBTK04"]}]};
+/* </GRAPHIFY:DATA> */
+
+mulaiPenjelajah(DATA);
+</script>
+</body>
+</html>
