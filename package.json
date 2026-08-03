@@ -20,9 +20,9 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "node scripts/seed-db.mjs",
+    "db:seed": "tsx scripts/seed-db.ts",
     "db:studio": "prisma studio",
-    "import:csv": "node scripts/import-csv.mjs"
+    "import:csv": "tsx scripts/import-csv.ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs}": [
@@ -64,6 +64,7 @@
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.5",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }

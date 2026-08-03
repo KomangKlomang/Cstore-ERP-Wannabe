@@ -138,7 +138,8 @@ export const PERMISSION_MATRIX: Matrix = {
   },
 };
 
-export function can(user: User | null, modul: ModuleKey, perm: Permission = "view"): boolean {
+/** Hanya butuh role & aktif, supaya bisa dipakai juga oleh session di server. */
+export function can(user: Pick<User, "role" | "aktif"> | null, modul: ModuleKey, perm: Permission = "view"): boolean {
   if (!user || !user.aktif) return false;
   return PERMISSION_MATRIX[user.role]?.[modul]?.includes(perm) ?? false;
 }

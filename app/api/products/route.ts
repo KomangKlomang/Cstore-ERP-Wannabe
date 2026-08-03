@@ -1,82 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { ApiError, handleApiError, readJson, requirePermission } from "@/lib/api";
+import { PRODUCT_STATUSES, buildProductCreate, type ProductStatus } from "@/lib/validators/product";
 
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await requirePermission("product", "view");
 
-  const url = new URL(req.url);
-  const search = url.searchParams.get("q") || "";
-  const status = url.searchParams.get("status");
-  const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
-  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 25));
-  const skip = (page - 1) * limit;
+    const url = new URL(req.url);
+    const search = url.searchParams.get("q")?.trim() || "";
+    const status = url.searchParams.get("status");
+    const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 25));
 
-  const where = {
-    ...(search && {
-      OR: [
-        { namaProduct: { contains: search, mode: "insensitive" as const } },
-        { kodeProduct: { contains: search, mode: "insensitive" as const } },
-        { barcode: { contains: search, mode: "insensitive" as const } },
-      ],
-    }),
-    ...(status && { status: status as "DRAFT" | "AKTIF" | "NONAKTIF" | "DELISTING" }),
-  };
+    if (status && !PRODUCT_STATUSES.includes(status as ProductStatus)) {
+      throw new ApiError(400, `status harus salah satu dari: ${PRODUCT_STATUSES.join(", ")}`);
+    }
 
-  const [data, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: { principal: { select: { nama: true } }, category: { select: { subCategory: true } }, tagRegions: true },
-      orderBy: { updatedAt: "desc" },
-      skip,
-      take: limit,
-    }),
-    prisma.product.count({ where }),
-  ]);
+    const where = {
+      ...(search && {
+        OR: [
+          { namaProduct: { contains: search, mode: "insensitive" as const } },
+          { kodeProduct: { contains: search, mode: "insensitive" as const } },
+          { barcode: { contains: search, mode: "insensitive" as const } },
+        ],
+      }),
+      ...(status && { status: status as ProductStatus }),
+    };
 
-  return NextResponse.json({ data, total, page, limit });
+    const [data, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: {
+          principal: { select: { nama: true } },
+          category: { select: { subCategory: true } },
+          tagRegions: true,
+        },
+        orderBy: { updatedAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    return NextResponse.json({ data, total, page, limit });
+  } catch (err) {
+    return handleApiError(err);
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await requirePermission("product", "create");
+    const body = await readJson(req);
+    const data = buildProductCreate(body, session.id);
 
-  const body = await req.json();
+    // Satu transaksi: produk tanpa jejak audit (atau sebaliknya) tidak boleh terjadi.
+    const product = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({ data });
+      await tx.auditTrail.create({
+        data: {
+          entity: "product",
+          entityId: created.id,
+          entityLabel: created.namaProduct,
+          action: "CREATE",
+          aktorId: session.id,
+          aktorRole: session.role,
+        },
+      });
+      return created;
+    });
 
-  const product = await prisma.product.create({
-    data: {
-      kodeProduct: body.kodeProduct,
-      barcode: body.barcode,
-      namaProduct: body.namaProduct,
-      principalId: body.principalId,
-      categoryId: body.categoryId,
-      brand: body.brand,
-      uom: body.uom || "PCS",
-      isiSatuPack: body.isiSatuPack || 1,
-      hargaBeli: body.hargaBeli || 0,
-      hargaJual: body.hargaJual || 0,
-      msrp: body.msrp || 0,
-      c1: body.c1,
-      c2: body.c2,
-      c3: body.c3,
-      c4: body.c4,
-      c5: body.c5,
-      status: body.status || "DRAFT",
-      updatedBy: session.id,
-    },
-  });
-
-  await prisma.auditTrail.create({
-    data: {
-      entity: "product",
-      entityId: product.id,
-      entityLabel: product.namaProduct,
-      action: "CREATE",
-      aktorId: session.id,
-      aktorRole: session.role as "MDM",
-    },
-  });
-
-  return NextResponse.json({ product }, { status: 201 });
+    return NextResponse.json({ product }, { status: 201 });
+  } catch (err) {
+    return handleApiError(err);
+  }
 }

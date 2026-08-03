@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 import { Button, Chip, useOverlayState } from "@heroui/react";
 import { Download, Pencil, Plus, Printer } from "lucide-react";
 
@@ -27,6 +26,7 @@ import { can } from "@/lib/rbac";
 import { exportCSV, exportExcel } from "@/lib/export";
 import { jatuhTempoPerBulan, kontrakInfo, type ReminderTier } from "@/lib/derive";
 import { fmtRp, fmtRpShort, fmtTgl } from "@/lib/format";
+import { useSearchParamState } from "@/lib/use-search-param-state";
 import { JENIS_KONTRAK, type Kontrak } from "@/lib/types";
 
 export default function KontrakPage() {
@@ -46,19 +46,10 @@ function KontrakView() {
   const saveRow = useApp((s) => s.saveRow);
   const user = useApp((s) => s.users.find((u) => u.id === s.currentUserId) ?? null);
   const boleh = can(user, "kontrak", "edit");
-  const params = useSearchParams();
-
-  const [q, setQ] = useState("");
-  const [jenis, setJenis] = useState("");
+  const [q, setQ] = useSearchParamState("q");
+  const [jenis, setJenis] = useSearchParamState("jenis");
   const [tier, setTier] = useState("");
   const [principal, setPrincipal] = useState("");
-
-  useEffect(() => {
-    const j = params.get("jenis");
-    if (j) setJenis(j);
-    const qq = params.get("q");
-    if (qq) setQ(qq);
-  }, [params]);
 
   const prnOpt: Opt[] = db.principals.map((p) => ({ id: p.id, label: p.nama, hint: p.kode }));
   const prnNama = (id: string) => db.principals.find((p) => p.id === id)?.nama ?? "-";
@@ -239,7 +230,9 @@ function KontrakView() {
                       <StatusChip status={k.status} />
                     </td>
                     <td className="px-3 py-2">
-                      {boleh ? <FormKontrak kontrak={k} prnOpt={prnOpt} onSimpan={(v) => saveRow("kontrak", v)} /> : null}
+                      {boleh ? (
+                        <FormKontrak kontrak={k} prnOpt={prnOpt} onSimpan={(v) => saveRow("kontrak", v)} />
+                      ) : null}
                     </td>
                   </tr>
                 );
@@ -251,8 +244,8 @@ function KontrakView() {
 
       <div className="mt-4">
         <Callout tone="warning" judul="Eskalasi reminder">
-          Kontrak yang melewati H-7 tanpa tindakan otomatis muncul sebagai kartu kritis di dashboard MDM. Target G2:
-          nol kontrak lewat masa berlaku tanpa notifikasi.
+          Kontrak yang melewati H-7 tanpa tindakan otomatis muncul sebagai kartu kritis di dashboard MDM. Target G2: nol
+          kontrak lewat masa berlaku tanpa notifikasi.
         </Callout>
       </div>
     </div>
@@ -342,7 +335,12 @@ function FormKontrak({
           <div className="grid gap-3 sm:grid-cols-2">
             <TextInput label="Nomor surat" value={draft.nomorSurat} onChange={(v) => set("nomorSurat", v)} isRequired />
             <TextInput label="Judul kontrak" value={draft.judul} onChange={(v) => set("judul", v)} isRequired />
-            <SelectField label="Principal" items={prnOpt} value={draft.principalId} onChange={(v) => set("principalId", v)} />
+            <SelectField
+              label="Principal"
+              items={prnOpt}
+              value={draft.principalId}
+              onChange={(v) => set("principalId", v)}
+            />
             <SelectField
               label="Jenis"
               items={JENIS_KONTRAK.map((j) => ({ id: j, label: j }))}
@@ -350,7 +348,12 @@ function FormKontrak({
               onChange={(v) => set("jenis", v as Kontrak["jenis"])}
             />
             <TextInput label="Masa mulai" type="date" value={draft.masaMulai} onChange={(v) => set("masaMulai", v)} />
-            <TextInput label="Masa berakhir" type="date" value={draft.masaBerakhir} onChange={(v) => set("masaBerakhir", v)} />
+            <TextInput
+              label="Masa berakhir"
+              type="date"
+              value={draft.masaBerakhir}
+              onChange={(v) => set("masaBerakhir", v)}
+            />
             <NumberInput label="Nilai kontrak" value={draft.nilai} onChange={(v) => set("nilai", v)} />
             <SelectField
               label="Status"

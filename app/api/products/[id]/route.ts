@@ -1,75 +1,85 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { handleApiError, readJson, requirePermission } from "@/lib/api";
+import { buildProductUpdate } from "@/lib/validators/product";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await requirePermission("product", "view");
 
-  const { id } = await params;
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      principal: true,
-      category: true,
-      tagRegions: true,
-      pluAllocations: true,
-    },
-  });
+    const { id } = await params;
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: { principal: true, category: true, tagRegions: true, pluAllocations: true },
+    });
 
-  if (!product) return NextResponse.json({ error: "Tidak ditemukan" }, { status: 404 });
-  return NextResponse.json({ product });
+    if (!product) return NextResponse.json({ error: "Produk tidak ditemukan" }, { status: 404 });
+    return NextResponse.json({ product });
+  } catch (err) {
+    return handleApiError(err);
+  }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await requirePermission("product", "edit");
 
-  const { id } = await params;
-  const body = await req.json();
+    const { id } = await params;
+    const body = await readJson(req);
+    const data = buildProductUpdate(body, session.id);
 
-  const existing = await prisma.product.findUnique({ where: { id } });
-  if (!existing) return NextResponse.json({ error: "Tidak ditemukan" }, { status: 404 });
+    const product = await prisma.$transaction(async (tx) => {
+      const existing = await tx.product.findUnique({ where: { id } });
+      if (!existing) return null;
 
-  const product = await prisma.product.update({
-    where: { id },
-    data: { ...body, updatedBy: session.id },
-  });
+      const updated = await tx.product.update({ where: { id }, data });
+      await tx.auditTrail.create({
+        data: {
+          entity: "product",
+          entityId: id,
+          entityLabel: updated.namaProduct,
+          action: "UPDATE",
+          aktorId: session.id,
+          aktorRole: session.role,
+        },
+      });
+      return updated;
+    });
 
-  await prisma.auditTrail.create({
-    data: {
-      entity: "product",
-      entityId: id,
-      entityLabel: product.namaProduct,
-      action: "UPDATE",
-      aktorId: session.id,
-      aktorRole: session.role as "MDM",
-    },
-  });
-
-  return NextResponse.json({ product });
+    if (!product) return NextResponse.json({ error: "Produk tidak ditemukan" }, { status: 404 });
+    return NextResponse.json({ product });
+  } catch (err) {
+    return handleApiError(err);
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await requirePermission("product", "delete");
 
-  const { id } = await params;
-  const product = await prisma.product.findUnique({ where: { id } });
-  if (!product) return NextResponse.json({ error: "Tidak ditemukan" }, { status: 404 });
+    const { id } = await params;
 
-  await prisma.product.delete({ where: { id } });
+    const deleted = await prisma.$transaction(async (tx) => {
+      const existing = await tx.product.findUnique({ where: { id } });
+      if (!existing) return null;
 
-  await prisma.auditTrail.create({
-    data: {
-      entity: "product",
-      entityId: id,
-      entityLabel: product.namaProduct,
-      action: "DELETE",
-      aktorId: session.id,
-      aktorRole: session.role as "MDM",
-    },
-  });
+      await tx.product.delete({ where: { id } });
+      await tx.auditTrail.create({
+        data: {
+          entity: "product",
+          entityId: id,
+          entityLabel: existing.namaProduct,
+          action: "DELETE",
+          aktorId: session.id,
+          aktorRole: session.role,
+        },
+      });
+      return existing;
+    });
 
-  return NextResponse.json({ ok: true });
+    if (!deleted) return NextResponse.json({ error: "Produk tidak ditemukan" }, { status: 404 });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return handleApiError(err);
+  }
 }

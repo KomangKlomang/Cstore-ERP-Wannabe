@@ -21,6 +21,11 @@ jobs:
 
       - run: npm ci
 
+      # lib/generated/prisma tidak di-commit, jadi harus di-generate dulu
+      # atau tsc/next build gagal dengan "Cannot find module".
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Lint
         run: npm run lint
 
@@ -44,6 +49,11 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # lib/generated/prisma tidak di-commit, jadi harus di-generate dulu
+      # atau tsc/next build gagal dengan "Cannot find module".
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
       - name: Build
         run: npm run build

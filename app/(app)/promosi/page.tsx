@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 import { Button, Chip, useOverlayState } from "@heroui/react";
 import { Download, Pencil, Plus } from "lucide-react";
 
@@ -26,6 +25,7 @@ import { newId, useApp } from "@/lib/store";
 import { can } from "@/lib/rbac";
 import { exportCSV } from "@/lib/export";
 import { fmtRp, fmtRpShort, fmtTgl } from "@/lib/format";
+import { useSearchParamState } from "@/lib/use-search-param-state";
 import { REGIONS, type Promosi, type Region } from "@/lib/types";
 
 export default function PromosiPage() {
@@ -43,15 +43,8 @@ function PromosiView() {
   const saveRow = useApp((s) => s.saveRow);
   const user = useApp((s) => s.users.find((u) => u.id === s.currentUserId) ?? null);
   const boleh = can(user, "promosi", "edit");
-  const params = useSearchParams();
-
-  const [q, setQ] = useState("");
+  const [q, setQ] = useSearchParamState("q");
   const [status, setStatus] = useState("");
-
-  useEffect(() => {
-    const qq = params.get("q");
-    if (qq) setQ(qq);
-  }, [params]);
 
   const prnNama = (id: string) => db.principals.find((p) => p.id === id)?.nama ?? "-";
   const prnOpt: Opt[] = db.principals.map((p) => ({ id: p.id, label: p.nama, hint: p.kode }));
@@ -292,9 +285,19 @@ function FormPromosi({
       <FormModal state={state} judul={promosi ? `Ubah ${promosi.nama}` : "Buat promosi"} onSimpan={simpan}>
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <TextInput label="Kode promo" value={draft.kodePromo} onChange={(v) => set("kodePromo", v.toUpperCase())} isRequired />
+            <TextInput
+              label="Kode promo"
+              value={draft.kodePromo}
+              onChange={(v) => set("kodePromo", v.toUpperCase())}
+              isRequired
+            />
             <TextInput label="Nama promo" value={draft.nama} onChange={(v) => set("nama", v)} isRequired />
-            <SelectField label="Principal" items={prnOpt} value={draft.principalId} onChange={(v) => set("principalId", v)} />
+            <SelectField
+              label="Principal"
+              items={prnOpt}
+              value={draft.principalId}
+              onChange={(v) => set("principalId", v)}
+            />
             <SelectField
               label="Status"
               items={[
@@ -307,7 +310,12 @@ function FormPromosi({
               onChange={(v) => set("status", v as Promosi["status"])}
             />
             <TextInput label="Tgl mulai" type="date" value={draft.tglMulai} onChange={(v) => set("tglMulai", v)} />
-            <TextInput label="Tgl selesai" type="date" value={draft.tglSelesai} onChange={(v) => set("tglSelesai", v)} />
+            <TextInput
+              label="Tgl selesai"
+              type="date"
+              value={draft.tglSelesai}
+              onChange={(v) => set("tglSelesai", v)}
+            />
             <NumberInput label="Budget" value={draft.budget} onChange={(v) => set("budget", v)} />
           </div>
 
@@ -378,7 +386,12 @@ function FormPromosi({
             </div>
           </div>
 
-          <FileUploadField label="Key Visual (wajib)" files={draft.kv} onChange={(f) => set("kv", f)} accept="image/*" />
+          <FileUploadField
+            label="Key Visual (wajib)"
+            files={draft.kv}
+            onChange={(f) => set("kv", f)}
+            accept="image/*"
+          />
           <FileUploadField label="Dokumen pendukung" files={draft.dokumen} onChange={(f) => set("dokumen", f)} />
 
           {err ? <p className="text-sm text-danger">{err}</p> : null}

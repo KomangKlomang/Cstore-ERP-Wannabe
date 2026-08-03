@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Chip, Spinner, useTheme } from "@heroui/react";
@@ -327,28 +327,50 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 
   const entitas = useMemo(() => {
     if (q.trim().length < 2) return [];
-    return Object.entries(globalSearch(db, q, 4)).flatMap(([grup, hits]) =>
-      hits.map((h) => ({ grup, ...h })),
-    );
+    return Object.entries(globalSearch(db, q, 4)).flatMap(([grup, hits]) => hits.map((h) => ({ grup, ...h })));
   }, [db, q]);
 
   const daftar = useMemo(
     () => [
-      ...modul.slice(0, 8).map((m) => ({ tipe: "modul" as const, href: m.href, judul: m.label, sub: m.grup, icon: m.icon })),
-      ...entitas.map((e) => ({ tipe: "data" as const, href: e.href, judul: e.judul, sub: `${e.grup} · ${e.subjudul}`, icon: undefined })),
+      ...modul
+        .slice(0, 8)
+        .map((m) => ({ tipe: "modul" as const, href: m.href, judul: m.label, sub: m.grup, icon: m.icon })),
+      ...entitas.map((e) => ({
+        tipe: "data" as const,
+        href: e.href,
+        judul: e.judul,
+        sub: `${e.grup} · ${e.subjudul}`,
+        icon: undefined,
+      })),
     ],
     [modul, entitas],
   );
 
-  useEffect(() => {
+  /**
+   * Reset dilakukan saat render (pola resmi React "adjusting state when a prop
+   * changes"), bukan lewat useEffect. Versi effect membuat palet sempat tampil
+   * satu frame dengan query lama sebelum dibersihkan.
+   */
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setQ("");
       setAktif(0);
-      setTimeout(() => inputRef.current?.focus(), 10);
     }
-  }, [open]);
+  }
 
-  useEffect(() => setAktif(0), [q]);
+  const [prevQ, setPrevQ] = useState(q);
+  if (q !== prevQ) {
+    setPrevQ(q);
+    setAktif(0);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => inputRef.current?.focus(), 10);
+    return () => clearTimeout(timer);
+  }, [open]);
 
   const buka = useCallback(
     (href: string) => {
@@ -407,7 +429,9 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
                   onMouseEnter={() => setAktif(i)}
                   onClick={() => buka(d.href)}
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ${
-                    i === aktif ? "bg-accent-soft text-accent-soft-foreground" : "text-foreground hover:bg-surface-hover"
+                    i === aktif
+                      ? "bg-accent-soft text-accent-soft-foreground"
+                      : "text-foreground hover:bg-surface-hover"
                   }`}
                 >
                   {Icon ? (
@@ -439,31 +463,64 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 /* ------------------------------------------------------------------- Sidebar */
 
 const KEY_GRUP = "erp-nav-collapsed";
+const GRUP_KOSONG: string[] = [];
+
+/**
+ * Preferensi grup nav yang tertutup, dibaca sebagai external store.
+ *
+ * Sebelumnya dibaca lewat useEffect + setState, jadi sidebar selalu render
+ * sekali dengan semua grup terbuka lalu menciut — terlihat berkedip tiap
+ * pindah halaman. useSyncExternalStore membuat React menangani perbedaan
+ * server/client tanpa render tambahan.
+ */
+const grupListeners = new Set<() => void>();
+let grupRawCache: string | null = null;
+let grupValueCache: string[] = GRUP_KOSONG;
+
+function subscribeGrup(cb: () => void) {
+  grupListeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    grupListeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+
+/** Hasilnya di-cache supaya referensinya stabil — syarat useSyncExternalStore. */
+function bacaGrup(): string[] {
+  try {
+    const raw = localStorage.getItem(KEY_GRUP);
+    if (raw !== grupRawCache) {
+      grupRawCache = raw;
+      const parsed = raw ? JSON.parse(raw) : null;
+      grupValueCache = Array.isArray(parsed) ? parsed : GRUP_KOSONG;
+    }
+  } catch {
+    grupValueCache = GRUP_KOSONG;
+  }
+  return grupValueCache;
+}
+
+function bacaGrupServer(): string[] {
+  return GRUP_KOSONG;
+}
+
+function simpanGrup(next: string[]) {
+  try {
+    localStorage.setItem(KEY_GRUP, JSON.stringify(next));
+  } catch {
+    /* abaikan — preferensi tampilan saja */
+  }
+  grupListeners.forEach((cb) => cb());
+}
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const user = useApp((s) => s.users.find((u) => u.id === s.currentUserId) ?? null);
-  const [tutup, setTutup] = useState<string[]>([]);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY_GRUP);
-      if (raw) setTutup(JSON.parse(raw));
-    } catch {
-      /* abaikan — preferensi tampilan saja */
-    }
-  }, []);
+  const tutup = useSyncExternalStore(subscribeGrup, bacaGrup, bacaGrupServer);
 
   function toggle(judul: string) {
-    setTutup((prev) => {
-      const next = prev.includes(judul) ? prev.filter((x) => x !== judul) : [...prev, judul];
-      try {
-        localStorage.setItem(KEY_GRUP, JSON.stringify(next));
-      } catch {
-        /* abaikan */
-      }
-      return next;
-    });
+    simpanGrup(tutup.includes(judul) ? tutup.filter((x) => x !== judul) : [...tutup, judul]);
   }
 
   return (
@@ -511,7 +568,10 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                         }`}
                       >
                         {aktif ? (
-                          <span aria-hidden className="absolute left-0 top-1.5 h-[calc(100%-0.75rem)] w-0.5 rounded-full bg-accent" />
+                          <span
+                            aria-hidden
+                            className="absolute left-0 top-1.5 h-[calc(100%-0.75rem)] w-0.5 rounded-full bg-accent"
+                          />
                         ) : null}
                         <Icon className="mt-0.5 size-4 shrink-0" />
                         <span className="min-w-0 flex-1">
@@ -629,7 +689,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur no-print">
-          <Button variant="ghost" isIconOnly aria-label="Buka menu" className="lg:hidden" onPress={() => setMobileNav(true)}>
+          <Button
+            variant="ghost"
+            isIconOnly
+            aria-label="Buka menu"
+            className="lg:hidden"
+            onPress={() => setMobileNav(true)}
+          >
             <Menu className="size-4" />
           </Button>
           <LogoMark size={26} className="lg:hidden" />

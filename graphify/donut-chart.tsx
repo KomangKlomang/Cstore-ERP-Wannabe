@@ -30,7 +30,15 @@ export function DonutChart({
   const r = 78;
   const stroke = 22;
   const circ = 2 * Math.PI * r;
-  let acc = 0;
+
+  /**
+   * Offset tiap segmen dihitung di depan sebagai nilai murni. Sebelumnya sebuah
+   * `let acc` dijumlahkan di dalam .map() saat JSX dirender — React boleh
+   * mengulang atau menunda render itu, dan akumulatornya jadi ikut terbawa
+   * sehingga segmen bisa tergambar di sudut yang salah.
+   */
+  const fractions = data.map((d) => d.value / total);
+  const offsets = fractions.map((_, i) => fractions.slice(0, i).reduce((sum, f) => sum + f, 0));
 
   return (
     <ChartFrame
@@ -47,9 +55,8 @@ export function DonutChart({
         <svg viewBox={`0 0 ${size} ${size}`} className="h-44 w-44 shrink-0" role="img" aria-label={title}>
           <g transform={`rotate(-90 ${c} ${c})`}>
             {data.map((d, i) => {
-              const frac = d.value / total;
-              const len = Math.max(frac * circ - 2, 0); /* jeda 2px antar segmen */
-              const el = (
+              const len = Math.max(fractions[i] * circ - 2, 0); /* jeda 2px antar segmen */
+              return (
                 <circle
                   key={d.label}
                   cx={c}
@@ -59,15 +66,20 @@ export function DonutChart({
                   stroke={pal[i]}
                   strokeWidth={stroke}
                   strokeDasharray={`${len} ${circ - len}`}
-                  strokeDashoffset={-acc * circ}
+                  strokeDashoffset={-offsets[i] * circ}
                   strokeLinecap="butt"
                 />
               );
-              acc += frac;
-              return el;
             })}
           </g>
-          <text x={c} y={c - 6} textAnchor="middle" className="fill-current text-foreground tnum" fontSize={26} fontWeight={600}>
+          <text
+            x={c}
+            y={c - 6}
+            textAnchor="middle"
+            className="fill-current text-foreground tnum"
+            fontSize={26}
+            fontWeight={600}
+          >
             {format(total)}
           </text>
           <text x={c} y={c + 16} textAnchor="middle" fill="var(--viz-ink-muted)" fontSize={11}>
@@ -78,7 +90,11 @@ export function DonutChart({
         <ul className="min-w-[180px] flex-1 space-y-1.5">
           {data.map((d, i) => (
             <li key={d.label} className="flex items-center gap-2 text-xs">
-              <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-[3px]" style={{ background: pal[i] }} />
+              <span
+                aria-hidden
+                className="inline-block size-2.5 shrink-0 rounded-[3px]"
+                style={{ background: pal[i] }}
+              />
               <span className="truncate text-foreground">{d.label}</span>
               <span className="ml-auto tnum text-muted">
                 {format(d.value)} Â· {((d.value / total) * 100).toFixed(0)}%

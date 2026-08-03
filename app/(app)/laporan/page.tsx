@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 import { Button, Chip, Tabs } from "@heroui/react";
 import { Download, FileSpreadsheet, Printer } from "lucide-react";
 
@@ -12,6 +11,7 @@ import { useApp } from "@/lib/store";
 import { exportCSV, exportExcel, type Column } from "@/lib/export";
 import { kontrakInfo } from "@/lib/derive";
 import { fmtRp, fmtRpShort, fmtTgl } from "@/lib/format";
+import { useSearchParamState } from "@/lib/use-search-param-state";
 
 export default function LaporanPage() {
   return (
@@ -23,7 +23,8 @@ export default function LaporanPage() {
   );
 }
 
-type EntitasKey = "products" | "stores" | "kontrak" | "aset" | "promosi" | "contentReports" | "categories" | "principals";
+type EntitasKey =
+  "products" | "stores" | "kontrak" | "aset" | "promosi" | "contentReports" | "categories" | "principals";
 
 interface EntitasDef {
   label: string;
@@ -39,16 +40,10 @@ function def<T>(label: string, rows: T[], cols: Column<T>[]): EntitasDef {
 
 function LaporanView() {
   const db = useApp((s) => s);
-  const params = useSearchParams();
 
-  const [principalId, setPrincipalId] = useState("");
+  const [principalId, setPrincipalId] = useSearchParamState("principal");
   const [entitas, setEntitas] = useState<EntitasKey>("kontrak");
   const [hanyaBerkontrak, setHanyaBerkontrak] = useState("YA");
-
-  useEffect(() => {
-    const p = params.get("principal");
-    if (p) setPrincipalId(p);
-  }, [params]);
 
   const prnNama = (id: string) => db.principals.find((p) => p.id === id)?.nama ?? "-";
   const storeNama = (code: string) => db.stores.find((s) => s.storeCode === code)?.storeName ?? code;
@@ -76,85 +71,85 @@ function LaporanView() {
 
     return {
       kontrak: def("Kontrak", filterPrincipal(db.kontrak), [
-          { key: "nomorSurat", header: "Nomor Surat", value: (k) => k.nomorSurat },
-          { key: "judul", header: "Judul", value: (k) => k.judul },
-          { key: "principal", header: "Principal", value: (k) => prnNama(k.principalId) },
-          { key: "jenis", header: "Jenis", value: (k) => k.jenis },
-          { key: "mulai", header: "Masa Mulai", value: (k) => k.masaMulai },
-          { key: "akhir", header: "Masa Berakhir", value: (k) => k.masaBerakhir },
-          { key: "sisa", header: "Sisa Hari", value: (k) => kontrakInfo(k).sisaHari },
-          { key: "reminder", header: "Reminder", value: (k) => kontrakInfo(k).tier },
-          { key: "nilai", header: "Nilai", value: (k) => k.nilai },
-          { key: "toko", header: "Jumlah Toko", value: (k) => k.storeCodes.length },
-          { key: "lampiran", header: "Jumlah Lampiran", value: (k) => k.lampiran.length },
-          { key: "status", header: "Status", value: (k) => k.status },
-        ]),
+        { key: "nomorSurat", header: "Nomor Surat", value: (k) => k.nomorSurat },
+        { key: "judul", header: "Judul", value: (k) => k.judul },
+        { key: "principal", header: "Principal", value: (k) => prnNama(k.principalId) },
+        { key: "jenis", header: "Jenis", value: (k) => k.jenis },
+        { key: "mulai", header: "Masa Mulai", value: (k) => k.masaMulai },
+        { key: "akhir", header: "Masa Berakhir", value: (k) => k.masaBerakhir },
+        { key: "sisa", header: "Sisa Hari", value: (k) => kontrakInfo(k).sisaHari },
+        { key: "reminder", header: "Reminder", value: (k) => kontrakInfo(k).tier },
+        { key: "nilai", header: "Nilai", value: (k) => k.nilai },
+        { key: "toko", header: "Jumlah Toko", value: (k) => k.storeCodes.length },
+        { key: "lampiran", header: "Jumlah Lampiran", value: (k) => k.lampiran.length },
+        { key: "status", header: "Status", value: (k) => k.status },
+      ]),
       aset: def("Aset marketing", filterPrincipal(db.aset), [
-          { key: "kodeAset", header: "Kode Aset", value: (a) => a.kodeAset },
-          { key: "nama", header: "Nama", value: (a) => a.nama },
-          { key: "jenis", header: "Jenis", value: (a) => a.jenis },
-          { key: "principal", header: "Principal", value: (a) => prnNama(a.principalId) },
-          { key: "store", header: "Store Code", value: (a) => a.storeCode },
-          { key: "storeName", header: "Store Name", value: (a) => storeNama(a.storeCode) },
-          { key: "qty", header: "Qty", value: (a) => a.qty },
-          { key: "kondisi", header: "Kondisi", value: (a) => a.kondisi },
-          { key: "masuk", header: "Tgl Masuk", value: (a) => a.tglMasuk },
-          { key: "foto", header: "Jumlah Foto", value: (a) => a.fotoTerpasang.length },
-        ]),
+        { key: "kodeAset", header: "Kode Aset", value: (a) => a.kodeAset },
+        { key: "nama", header: "Nama", value: (a) => a.nama },
+        { key: "jenis", header: "Jenis", value: (a) => a.jenis },
+        { key: "principal", header: "Principal", value: (a) => prnNama(a.principalId) },
+        { key: "store", header: "Store Code", value: (a) => a.storeCode },
+        { key: "storeName", header: "Store Name", value: (a) => storeNama(a.storeCode) },
+        { key: "qty", header: "Qty", value: (a) => a.qty },
+        { key: "kondisi", header: "Kondisi", value: (a) => a.kondisi },
+        { key: "masuk", header: "Tgl Masuk", value: (a) => a.tglMasuk },
+        { key: "foto", header: "Jumlah Foto", value: (a) => a.fotoTerpasang.length },
+      ]),
       products: def("Master product", filterPrincipal(db.products), [
-          { key: "kode", header: "Kode Product", value: (p) => p.kodeProduct },
-          { key: "barcode", header: "Barcode", value: (p) => p.barcode },
-          { key: "nama", header: "Nama Product", value: (p) => p.namaProduct },
-          { key: "principal", header: "Principal", value: (p) => prnNama(p.principalId) },
-          { key: "brand", header: "Brand", value: (p) => p.brand },
-          { key: "beli", header: "Harga Beli", value: (p) => p.hargaBeli },
-          { key: "jual", header: "Harga Jual", value: (p) => p.hargaJual },
-          { key: "status", header: "Status", value: (p) => p.status },
-        ]),
+        { key: "kode", header: "Kode Product", value: (p) => p.kodeProduct },
+        { key: "barcode", header: "Barcode", value: (p) => p.barcode },
+        { key: "nama", header: "Nama Product", value: (p) => p.namaProduct },
+        { key: "principal", header: "Principal", value: (p) => prnNama(p.principalId) },
+        { key: "brand", header: "Brand", value: (p) => p.brand },
+        { key: "beli", header: "Harga Beli", value: (p) => p.hargaBeli },
+        { key: "jual", header: "Harga Jual", value: (p) => p.hargaJual },
+        { key: "status", header: "Status", value: (p) => p.status },
+      ]),
       promosi: def("Promosi", filterPrincipal(db.promosi), [
-          { key: "kode", header: "Kode Promo", value: (p) => p.kodePromo },
-          { key: "nama", header: "Nama", value: (p) => p.nama },
-          { key: "principal", header: "Principal", value: (p) => prnNama(p.principalId) },
-          { key: "mulai", header: "Tgl Mulai", value: (p) => p.tglMulai },
-          { key: "selesai", header: "Tgl Selesai", value: (p) => p.tglSelesai },
-          { key: "budget", header: "Budget", value: (p) => p.budget },
-          { key: "status", header: "Status", value: (p) => p.status },
-        ]),
+        { key: "kode", header: "Kode Promo", value: (p) => p.kodePromo },
+        { key: "nama", header: "Nama", value: (p) => p.nama },
+        { key: "principal", header: "Principal", value: (p) => prnNama(p.principalId) },
+        { key: "mulai", header: "Tgl Mulai", value: (p) => p.tglMulai },
+        { key: "selesai", header: "Tgl Selesai", value: (p) => p.tglSelesai },
+        { key: "budget", header: "Budget", value: (p) => p.budget },
+        { key: "status", header: "Status", value: (p) => p.status },
+      ]),
       stores: def("Master store", db.stores, [
-          { key: "code", header: "Store Code", value: (s) => s.storeCode },
-          { key: "name", header: "Store Name", value: (s) => s.storeName },
-          { key: "hm", header: "Store ID (HM)", value: (s) => s.storeIdHM },
-          { key: "ag", header: "Analytical Group (HM)", value: (s) => s.analyticalGroupHM },
-          { key: "type", header: "Store Type", value: (s) => s.storeType },
-          { key: "region", header: "Region", value: (s) => s.region },
-          { key: "kota", header: "Kota", value: (s) => s.kota },
-          { key: "status", header: "Status", value: (s) => s.status },
-        ]),
+        { key: "code", header: "Store Code", value: (s) => s.storeCode },
+        { key: "name", header: "Store Name", value: (s) => s.storeName },
+        { key: "hm", header: "Store ID (HM)", value: (s) => s.storeIdHM },
+        { key: "ag", header: "Analytical Group (HM)", value: (s) => s.analyticalGroupHM },
+        { key: "type", header: "Store Type", value: (s) => s.storeType },
+        { key: "region", header: "Region", value: (s) => s.region },
+        { key: "kota", header: "Kota", value: (s) => s.kota },
+        { key: "status", header: "Status", value: (s) => s.status },
+      ]),
       categories: def("Master category", db.categories, [
-          { key: "seg", header: "Segment", value: (c) => `${c.segmentCode} ${c.segment}` },
-          { key: "dept", header: "Dept", value: (c) => `${c.deptCode} ${c.dept}` },
-          { key: "sub", header: "Sub Dept", value: (c) => `${c.subDeptCode} ${c.subDept}` },
-          { key: "cat", header: "Category", value: (c) => `${c.categoryCode} ${c.category}` },
-          { key: "subcat", header: "Sub Category", value: (c) => `${c.subCategoryCode} ${c.subCategory}` },
-          { key: "status", header: "Status", value: (c) => c.status },
-        ]),
+        { key: "seg", header: "Segment", value: (c) => `${c.segmentCode} ${c.segment}` },
+        { key: "dept", header: "Dept", value: (c) => `${c.deptCode} ${c.dept}` },
+        { key: "sub", header: "Sub Dept", value: (c) => `${c.subDeptCode} ${c.subDept}` },
+        { key: "cat", header: "Category", value: (c) => `${c.categoryCode} ${c.category}` },
+        { key: "subcat", header: "Sub Category", value: (c) => `${c.subCategoryCode} ${c.subCategory}` },
+        { key: "status", header: "Status", value: (c) => c.status },
+      ]),
       principals: def("Master principal", db.principals, [
-          { key: "kode", header: "Kode", value: (p) => p.kode },
-          { key: "nama", header: "Nama", value: (p) => p.nama },
-          { key: "brand", header: "Brand", value: (p) => p.brand.join(", ") },
-          { key: "pic", header: "PIC", value: (p) => p.pic },
-          { key: "status", header: "Status", value: (p) => p.status },
-        ]),
+        { key: "kode", header: "Kode", value: (p) => p.kode },
+        { key: "nama", header: "Nama", value: (p) => p.nama },
+        { key: "brand", header: "Brand", value: (p) => p.brand.join(", ") },
+        { key: "pic", header: "PIC", value: (p) => p.pic },
+        { key: "status", header: "Status", value: (p) => p.status },
+      ]),
       contentReports: def("Content report", db.contentReports, [
-          { key: "tanggal", header: "Tanggal", value: (c) => c.tanggal },
-          { key: "store", header: "Store Code", value: (c) => c.storeCode },
-          { key: "nama", header: "Nama Konten", value: (c) => c.namaKonten },
-          { key: "platform", header: "Platform", value: (c) => c.platform },
-          { key: "jenis", header: "Jenis", value: (c) => c.jenisKonten },
-          { key: "like", header: "Like", value: (c) => c.like },
-          { key: "comment", header: "Comment", value: (c) => c.comment },
-          { key: "share", header: "Share", value: (c) => c.share },
-        ]),
+        { key: "tanggal", header: "Tanggal", value: (c) => c.tanggal },
+        { key: "store", header: "Store Code", value: (c) => c.storeCode },
+        { key: "nama", header: "Nama Konten", value: (c) => c.namaKonten },
+        { key: "platform", header: "Platform", value: (c) => c.platform },
+        { key: "jenis", header: "Jenis", value: (c) => c.jenisKonten },
+        { key: "like", header: "Like", value: (c) => c.like },
+        { key: "comment", header: "Comment", value: (c) => c.comment },
+        { key: "share", header: "Share", value: (c) => c.share },
+      ]),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, principalId]);
@@ -169,7 +164,12 @@ function LaporanView() {
         .map((p) => {
           const list = db.kontrak.filter((k) => k.principalId === p.id);
           const berjalan = list.filter((k) => kontrakInfo(k).sisaHari >= 0);
-          return { principal: p, total: list.length, berjalan: berjalan.length, nilai: berjalan.reduce((s, k) => s + k.nilai, 0) };
+          return {
+            principal: p,
+            total: list.length,
+            berjalan: berjalan.length,
+            nilai: berjalan.reduce((s, k) => s + k.nilai, 0),
+          };
         })
         .filter((r) => (hanyaBerkontrak === "YA" ? r.berjalan > 0 : true))
         .sort((a, b) => b.nilai - a.nilai),
@@ -196,7 +196,10 @@ function LaporanView() {
           <Toolbar>
             <SelectField
               label="Principal"
-              items={[{ id: "", label: "— pilih principal —" }, ...db.principals.map((p) => ({ id: p.id, label: p.nama, hint: p.kode }))]}
+              items={[
+                { id: "", label: "— pilih principal —" },
+                ...db.principals.map((p) => ({ id: p.id, label: p.nama, hint: p.kode })),
+              ]}
               value={principalId}
               onChange={setPrincipalId}
               className="w-72"
@@ -266,7 +269,15 @@ function LaporanView() {
                               </td>
                               <td className="py-1.5 pr-2 text-right tnum">{fmtRp(k.nilai)}</td>
                               <td className="py-1.5">
-                                <span className={info.level === "critical" ? "text-danger" : info.level === "good" ? "text-muted" : "text-warning"}>
+                                <span
+                                  className={
+                                    info.level === "critical"
+                                      ? "text-danger"
+                                      : info.level === "good"
+                                        ? "text-muted"
+                                        : "text-warning"
+                                  }
+                                >
                                   {info.tier}
                                 </span>
                               </td>
@@ -349,10 +360,7 @@ function LaporanView() {
               onChange={setPrincipalId}
               className="w-64"
             />
-            <Button
-              variant="primary"
-              onPress={() => exportCSV(aktif.rows, aktif.cols, `mms-${entitas}`)}
-            >
+            <Button variant="primary" onPress={() => exportCSV(aktif.rows, aktif.cols, `mms-${entitas}`)}>
               <Download className="size-4" /> CSV
             </Button>
             <Button
@@ -412,7 +420,11 @@ function LaporanView() {
             <BarChart
               title="Nilai kontrak berjalan per principal"
               subtitle="Hanya kontrak yang belum lewat masa berlaku"
-              data={principalBerkontrak.map((r) => ({ key: r.principal.id, label: r.principal.nama.replace(/^PT\s+/, ""), value: r.nilai }))}
+              data={principalBerkontrak.map((r) => ({
+                key: r.principal.id,
+                label: r.principal.nama.replace(/^PT\s+/, ""),
+                value: r.nilai,
+              }))}
               format={fmtRpShort}
               satuan="Nilai"
             />

@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 import { Button, Chip, useOverlayState } from "@heroui/react";
 import { Download, Pencil, Plus, Printer } from "lucide-react";
 
@@ -27,6 +26,7 @@ import { can, inScope } from "@/lib/rbac";
 import { exportCSV, exportExcel } from "@/lib/export";
 import { asetPerRegion } from "@/lib/derive";
 import { fmtTgl } from "@/lib/format";
+import { useSearchParamState } from "@/lib/use-search-param-state";
 import { JENIS_ASET, REGIONS, type Aset } from "@/lib/types";
 
 export default function AsetPage() {
@@ -44,19 +44,11 @@ function AsetView() {
   const saveRow = useApp((s) => s.saveRow);
   const user = useApp((s) => s.users.find((u) => u.id === s.currentUserId) ?? null);
   const boleh = can(user, "aset", "edit");
-  const params = useSearchParams();
-
   const [q, setQ] = useState("");
   const [jenis, setJenis] = useState("");
-  const [kondisi, setKondisi] = useState("");
+  const [kondisi, setKondisi] = useSearchParamState("kondisi");
   const [region, setRegion] = useState("");
-  const [foto, setFoto] = useState("");
-
-  useEffect(() => {
-    const k = params.get("kondisi");
-    if (k) setKondisi(k);
-    if (params.get("foto") === "kosong") setFoto("kosong");
-  }, [params]);
+  const [foto, setFoto] = useSearchParamState("foto", ["kosong"]);
 
   const storeRegion = useMemo(() => new Map(db.stores.map((s) => [s.storeCode, s.region])), [db.stores]);
   const storeNama = (code: string) => db.stores.find((s) => s.storeCode === code)?.storeName ?? code;
@@ -75,13 +67,20 @@ function AsetView() {
       if (region && storeRegion.get(a.storeCode) !== region) return false;
       if (foto === "kosong" && (!a.tangible || a.fotoTerpasang.length > 0)) return false;
       if (!term) return true;
-      return [a.kodeAset, a.nama, storeNama(a.storeCode), prnNama(a.principalId)].join(" ").toLowerCase().includes(term);
+      return [a.kodeAset, a.nama, storeNama(a.storeCode), prnNama(a.principalId)]
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terlihat, q, jenis, kondisi, region, foto, storeRegion]);
 
   const prnOpt: Opt[] = db.principals.map((p) => ({ id: p.id, label: p.nama, hint: p.kode }));
-  const stOpt: Opt[] = db.stores.map((s) => ({ id: s.storeCode, label: `${s.storeCode} — ${s.storeName}`, hint: s.region }));
+  const stOpt: Opt[] = db.stores.map((s) => ({
+    id: s.storeCode,
+    label: `${s.storeCode} — ${s.storeName}`,
+    hint: s.region,
+  }));
   const ktrOpt: Opt[] = [
     { id: "", label: "— tanpa kontrak —" },
     ...db.kontrak.map((k) => ({ id: k.id, label: k.judul, hint: k.nomorSurat })),
@@ -93,7 +92,11 @@ function AsetView() {
     { key: "jenis", header: "Jenis", value: (a: Aset) => a.jenis },
     { key: "tangible", header: "Tangible", value: (a: Aset) => (a.tangible ? "Y" : "N") },
     { key: "principal", header: "Principal", value: (a: Aset) => prnNama(a.principalId) },
-    { key: "kontrak", header: "Kontrak", value: (a: Aset) => db.kontrak.find((k) => k.id === a.kontrakId)?.nomorSurat ?? "" },
+    {
+      key: "kontrak",
+      header: "Kontrak",
+      value: (a: Aset) => db.kontrak.find((k) => k.id === a.kontrakId)?.nomorSurat ?? "",
+    },
     { key: "store", header: "Store Code", value: (a: Aset) => a.storeCode },
     { key: "storeName", header: "Store Name", value: (a: Aset) => storeNama(a.storeCode) },
     { key: "region", header: "Region", value: (a: Aset) => storeRegion.get(a.storeCode) ?? "" },
@@ -115,7 +118,9 @@ function AsetView() {
         deskripsi="Aset per toko (akrilik, header, lolipop, showcase) dengan qty, kondisi good/replace, tanggal masuk, dan foto terpasang. Aset tangible wajib punya dokumentasi foto."
         aksi={
           <>
-            {boleh ? <FormAset prnOpt={prnOpt} stOpt={stOpt} ktrOpt={ktrOpt} onSimpan={(v) => saveRow("aset", v)} /> : null}
+            {boleh ? (
+              <FormAset prnOpt={prnOpt} stOpt={stOpt} ktrOpt={ktrOpt} onSimpan={(v) => saveRow("aset", v)} />
+            ) : null}
             <Button variant="outline" onPress={() => exportCSV(terfilter, kolom, "aset-marketing")}>
               <Download className="size-4" /> CSV
             </Button>
@@ -225,9 +230,7 @@ function AsetView() {
                     <Chip size="sm" variant="soft">
                       {a.jenis}
                     </Chip>
-                    {!a.tangible ? (
-                      <span className="mt-0.5 block text-[11px] text-muted">intangible</span>
-                    ) : null}
+                    {!a.tangible ? <span className="mt-0.5 block text-[11px] text-muted">intangible</span> : null}
                   </td>
                   <td className="px-3 py-2 text-xs">
                     <span className="block text-foreground">{storeNama(a.storeCode)}</span>
@@ -237,7 +240,9 @@ function AsetView() {
                   </td>
                   <td className="px-3 py-2 text-xs text-muted">
                     <span className="block">{prnNama(a.principalId)}</span>
-                    <span className="block tnum">{db.kontrak.find((k) => k.id === a.kontrakId)?.nomorSurat ?? "-"}</span>
+                    <span className="block tnum">
+                      {db.kontrak.find((k) => k.id === a.kontrakId)?.nomorSurat ?? "-"}
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-right tnum">{a.qty}</td>
                   <td className="px-3 py-2 text-xs tnum text-muted">{fmtTgl(a.tglMasuk)}</td>
@@ -260,7 +265,13 @@ function AsetView() {
                   </td>
                   <td className="px-3 py-2">
                     {boleh ? (
-                      <FormAset aset={a} prnOpt={prnOpt} stOpt={stOpt} ktrOpt={ktrOpt} onSimpan={(v) => saveRow("aset", v)} />
+                      <FormAset
+                        aset={a}
+                        prnOpt={prnOpt}
+                        stOpt={stOpt}
+                        ktrOpt={ktrOpt}
+                        onSimpan={(v) => saveRow("aset", v)}
+                      />
                     ) : null}
                   </td>
                 </tr>
@@ -353,7 +364,12 @@ function FormAset({
       <FormModal state={state} judul={aset ? `Ubah ${aset.kodeAset}` : "Catat aset baru"} onSimpan={simpan}>
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <TextInput label="Kode aset" value={draft.kodeAset} onChange={(v) => set("kodeAset", v.toUpperCase())} isRequired />
+            <TextInput
+              label="Kode aset"
+              value={draft.kodeAset}
+              onChange={(v) => set("kodeAset", v.toUpperCase())}
+              isRequired
+            />
             <TextInput label="Nama aset" value={draft.nama} onChange={(v) => set("nama", v)} />
             <SelectField
               label="Jenis"
@@ -371,8 +387,18 @@ function FormAset({
               onChange={(v) => set("tangible", v === "true")}
             />
             <SelectField label="Toko" items={stOpt} value={draft.storeCode} onChange={(v) => set("storeCode", v)} />
-            <SelectField label="Principal" items={prnOpt} value={draft.principalId} onChange={(v) => set("principalId", v)} />
-            <SelectField label="Kontrak aset" items={ktrOpt} value={draft.kontrakId ?? ""} onChange={(v) => set("kontrakId", v || undefined)} />
+            <SelectField
+              label="Principal"
+              items={prnOpt}
+              value={draft.principalId}
+              onChange={(v) => set("principalId", v)}
+            />
+            <SelectField
+              label="Kontrak aset"
+              items={ktrOpt}
+              value={draft.kontrakId ?? ""}
+              onChange={(v) => set("kontrakId", v || undefined)}
+            />
             <NumberInput label="Qty" value={draft.qty} onChange={(v) => set("qty", v)} />
             <SelectField
               label="Kondisi"
@@ -387,7 +413,12 @@ function FormAset({
             />
             <TextInput label="PIC" value={draft.pic} onChange={(v) => set("pic", v)} />
             <TextInput label="Tgl masuk" type="date" value={draft.tglMasuk} onChange={(v) => set("tglMasuk", v)} />
-            <TextInput label="Tgl retur" type="date" value={draft.tglRetur ?? ""} onChange={(v) => set("tglRetur", v)} />
+            <TextInput
+              label="Tgl retur"
+              type="date"
+              value={draft.tglRetur ?? ""}
+              onChange={(v) => set("tglRetur", v)}
+            />
           </div>
 
           <FileUploadField
