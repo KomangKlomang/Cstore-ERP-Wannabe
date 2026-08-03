@@ -46,3 +46,9 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+
+# skill/tooling agent — dipasang per mesin, bukan bagian dari project
+.agents/
+.claude/skills/
+.windsurf/
+skills-lock.json
